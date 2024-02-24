@@ -19,7 +19,7 @@ func NewCache(capacity int) *Cache {
 }
 
 func (c *Cache) Get(key string) uint64 {
-	if !config.enableCache {
+	if !config.EnableCache {
 		return 0
 	}
 	if val, ok := c.mapCache[key]; ok {
@@ -29,7 +29,7 @@ func (c *Cache) Get(key string) uint64 {
 }
 
 func (c *Cache) Put(key string, value uint64) {
-	if !config.enableCache {
+	if !config.EnableCache {
 		return
 	}
 	if c.cache.Len() >= c.capacity {
@@ -45,7 +45,7 @@ func (c *Cache) Put(key string, value uint64) {
 }
 
 func (c *Cache) Has(key string) bool {
-	if !config.enableCache {
+	if !config.EnableCache {
 		return false
 	}
 	_, ok := c.mapCache[key]

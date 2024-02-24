@@ -36,7 +36,7 @@ func TestIsLine(t *testing.T) {
 */
 
 func TestIsAllInLine(t *testing.T) {
-	config.inLineDistance = 5
+	config.InLineDistance = 5
 	if !isAllInLine(10, []int{15, 20}, 5) {
 		t.Errorf("Expected true but got false")
 	}
@@ -46,7 +46,7 @@ func TestIsAllInLine(t *testing.T) {
 }
 
 func TestHasInLine(t *testing.T) {
-	config.inLineDistance = 5
+	config.InLineDistance = 5
 	if !hasInLine(10, []int{15, 21}, 5) {
 		t.Errorf("Expected true but got false")
 	}

@@ -14,6 +14,37 @@ var patterns = map[string]*regexp.Regexp{
 	"two":        regexp.MustCompile("001100|011000|000110|010100|001010"),
 }
 
+type Score struct {
+	Five       int
+	BlockFive  int
+	Four       int
+	FourFour   int
+	FourThree  int
+	ThreeThree int
+	BlockFour  int
+	Three      int
+	BlockThree int
+	TwoTwo     int
+	Two        int
+	BlockTwo   int
+	One        int
+	BlockOne   int
+	None       int
+}
+
+type Point struct {
+	X int
+	Y int
+}
+
+type Directions struct {
+	// 8个方向
+	Horizontal   Point
+	Vertical     Point
+	Diagonal     Point
+	AntiDiagonal Point
+}
+
 var shapes = map[string]int{
 	"FIVE":        5,
 	"BLOCK_FIVE":  50,
