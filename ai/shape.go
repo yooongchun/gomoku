@@ -1,9 +1,17 @@
 package ai
 
+import "reflect"
+
 type TypeRole int
 type TypeShape int
 type TypeDirection int
 type TypeShapeCache map[TypeRole]map[TypeDirection]map[int]map[int]TypeShape
+type TypePointCache map[TypeRole]map[TypeShape]map[int]bool
+
+type TypeHistory struct {
+	position int
+	role     TypeRole
+}
 
 // ShapeEnum 可取的形状
 type ShapeEnum struct {
@@ -43,6 +51,8 @@ var Chess = &ChessEnum{
 	EMPTY:    EMPTY,
 	OBSTACLE: OBSTACLE,
 }
+var Roles = []TypeRole{Chess.BLACK, Chess.WHITE}
+var Directions = []TypeDirection{HORIZONTAL, VERTICAL, DIAGONAL, ANTI_DIAGONAL}
 var Shapes = &ShapeEnum{
 	LiveFive:   5,
 	LiveFour:   4,
@@ -58,6 +68,16 @@ var Shapes = &ShapeEnum{
 	LiveOne:    1,
 	BlockOne:   10,
 	None:       0,
+}
+var ShapeFields []TypeShape
+
+func init() {
+	// 初始化 ShapeFields
+	ShapeFields = make([]TypeShape, 0)
+	v := reflect.ValueOf(*Shapes)
+	for i := 0; i < v.NumField(); i++ {
+		ShapeFields = append(ShapeFields, v.Field(i).Interface().(TypeShape))
+	}
 }
 
 // countShape function
@@ -191,7 +211,7 @@ func IsFour(shape TypeShape) bool {
 func GetAllShapesOfPoint(shapeCache TypeShapeCache, x, y int, role TypeRole) []TypeShape {
 	roles := []TypeRole{role}
 	if role == Chess.EMPTY {
-		roles = []TypeRole{Chess.BLACK, Chess.WHITE}
+		roles = Roles
 	}
 	var result []TypeShape
 	for _, r := range roles {
