@@ -1,55 +1,58 @@
 package ai
 
 // 形状转换分数，注意这里的分数是当前位置还没有落子的分数
-func getRealShapeScore(shape int) int {
+func getRealShapeScore(shape TypeShape) int {
 	switch shape {
-	case shapes["FIVE"]:
-		return scores.Four
-	case shapes["BLOCK_FIVE"]:
-		return scores.BlockFour
-	case shapes["FOUR"]:
-		return scores.Three
-	case shapes["FOUR_FOUR"]:
-		return scores.Three
-	case shapes["FOUR_THREE"]:
-		return scores.Three
-	case shapes["THREE_THREE"]:
-		return scores.ThreeThree / 10
-	case shapes["BLOCK_FOUR"]:
-		return scores.BlockThree
-	case shapes["THREE"]:
-		return scores.Two
-	case shapes["BLOCK_THREE"]:
-		return scores.BlockTwo
-	case shapes["TWO_TWO"]:
-		return scores.TwoTwo / 10
-	case shapes["TWO"]:
-		return scores.One
+	case Shapes.LiveFive:
+		return ScoreFive
+	case Shapes.LiveFour:
+		return ScoreLiveFour
+	case Shapes.FourFour:
+		return ScoreFourFour
+	case Shapes.FourThree:
+		return ScoreFourThree
+	case Shapes.ThreeThree:
+		return ScoreThreeThree
+	case Shapes.BlockFour:
+		return ScoreBlockFour
+	case Shapes.LiveThree:
+		return ScoreLiveThree
+	case Shapes.BlockThree:
+		return ScoreBlockThree
+	case Shapes.TwoTwo:
+		return ScoreTwoTwo
+	case Shapes.LiveTwo:
+		return ScoreLiveTwo
+	case Shapes.BlockTwo:
+		return ScoreBlockTwo
+	case Shapes.LiveOne:
+		return ScoreOne
+	case Shapes.BlockOne:
+		return ScoreBlockOne
 	default:
-		return scores.None
+		return ScoreNone
 	}
 }
 
-func direction2index(ox, oy int) int {
-	if ox == 0 { // |
-		return 0
+func direction2index(vec Vector) int {
+	if vec.x == 0 { // |
+		return VERTICAL
 	}
-	if oy == 0 { // -
-		return 1
+	if vec.y == 0 { // -
+		return HORIZONTAL
 	}
-	if ox == oy { // \
-		return 2
+	if vec.x == vec.y { // \
+		return DIAGONAL
 	}
-	// /
-	return 3
+	return ANTI_DIAGONAL // /
 }
 
-type Performance struct {
+type PerformanceEnum struct {
 	updateTime    int
 	getPointsTime int
 }
 
-var performanceData = &Performance{
+var performance = &PerformanceEnum{
 	updateTime:    0,
 	getPointsTime: 0,
 }
@@ -59,8 +62,8 @@ type Evaluate struct {
 	board       [][]int
 	blackScores [][]int
 	whiteScores [][]int
-	history     [][]int                             // 记录历史 [position, role]
-	shapeCache  map[int]map[int]map[int]map[int]int // 缓存每个点位的分数，避免重复计算
+	history     [][]int        // 记录历史 [position, role]
+	shapeCache  TypeShapeCache // 缓存每个点位的分数，避免重复计算
 }
 
 func NewEvaluate(size int) *Evaluate {
@@ -79,31 +82,20 @@ func NewEvaluate(size int) *Evaluate {
 		blackScores[i] = make([]int, size)
 		whiteScores[i] = make([]int, size)
 	}
-	shapeCache := make(map[int]map[int]map[int]map[int]int)
-	for _, r := range []int{role.Black, role.White} {
-		shapeCache[r] = make(map[int]map[int]map[int]int)
-		for _, direction := range []int{0, 1, 2, 3} {
-			shapeCache[r][direction] = make(map[int]map[int]int)
+	shapeCache := make(TypeShapeCache)
+	for _, r := range []TypeRole{Chess.BLACK, Chess.WHITE} {
+		shapeCache[r] = make(map[TypeDirection]map[int]map[int]TypeShape)
+		for _, direction := range []TypeDirection{HORIZONTAL, VERTICAL, DIAGONAL, ANTI_DIAGONAL} {
+			shapeCache[r][direction] = make(map[int]map[int]TypeShape)
 			for i := 0; i < size; i++ {
-				shapeCache[r][direction][i] = make(map[int]int)
+				shapeCache[r][direction][i] = make(map[int]TypeShape)
 				for j := 0; j < size; j++ {
-					shapeCache[r][direction][i][j] = shapes["NONE"]
+					shapeCache[r][direction][i][j] = Shapes.None
 				}
 			}
 		}
-
 	}
 	/*
-	  initPoints() {
-	    // 缓存每个点位的分数，避免重复计算
-	    // 结构： [role][direction][x][y] = shape
-	    this.shapeCache = {};
-	    for (let role of [1, -1]) {
-	      this.shapeCache[role] = {};
-	      for (let direction of [0, 1, 2, 3]) {
-	        this.shapeCache[role][direction] = Array.from({ length: this.size }).map(() => Array.from({ length: this.size }).fill(shapes.NONE));
-	      }
-	    }
 	    // 缓存每个形状对应的点位
 	    // 结构： pointsCache[role][shape] = Set(direction1, direction2);
 	    this.pointsCache = {}
@@ -153,5 +145,11 @@ func (e *Evaluate) move(x, y, role int) {
 	// 更新分数
 	e.board[x+1][y+1] = role
 	e.updatePoint(x, y)
-	e.history = append(e.history, []int{coordinate2Position(x, y, e.size), role})
+	e.history = append(e.history, []int{Coordinate2Position(x, y, e.size), role})
+}
+
+func (e *Evaluate) updatePoint(x, y int) {
+	// 更新当前点位的分数
+	// 更新当前点位的分数
+
 }

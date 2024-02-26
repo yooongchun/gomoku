@@ -1,19 +1,32 @@
 package ai
 
 const (
-	ScoreFive         = 10000000  //连五
-	SCORE_BLOCK_FIVE  = ScoreFive //冲四
-	SCORE_FOUR        = 100000    //活四
-	SCORE_FOUR_FOUR   = 100000    //冲四活三
-	SCORE_FOUR_THREE  = 100000
-	SCORE_THREE_THREE = 50000
-	SCORE_BLOCK_FOUR  = 1500
-	SCORE_THREE       = 1000
-	SCORE_BLOCK_THREE = 150
-	SCORE_TWO_TWO     = 200
-	SCORE_TWO         = 100
-	SCORE_BLOCK_TWO   = 15
-	SCORE_ONE         = 10
-	SCORE_BLOCK_ONE   = 1
-	SCORE_NONE        = 0
+	ScoreFive       = 10000000
+	ScoreLiveFour   = 1000000
+	ScoreFourFour   = 1000000
+	ScoreFourThree  = 1000000
+	ScoreThreeThree = 1000000
+	ScoreBlockFour  = 1500
+	ScoreLiveThree  = 1000
+	ScoreBlockThree = 150
+	ScoreTwoTwo     = 200
+	ScoreLiveTwo    = 100
+	ScoreBlockTwo   = 15
+	ScoreOne        = 10
+	ScoreBlockOne   = 1
+	ScoreNone       = 0
+)
+
+const (
+	BLACK    = 1
+	WHITE    = -1
+	EMPTY    = 0
+	OBSTACLE = 2
+)
+
+const (
+	HORIZONTAL = iota
+	VERTICAL
+	DIAGONAL
+	ANTI_DIAGONAL
 )

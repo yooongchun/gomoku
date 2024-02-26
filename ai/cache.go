@@ -7,31 +7,25 @@ import (
 type Cache struct {
 	capacity int
 	cache    *list.List
-	mapCache map[string]uint64
+	mapCache map[string]interface{}
 }
 
 func NewCache(capacity int) *Cache {
 	return &Cache{
 		capacity: capacity,
 		cache:    list.New(),
-		mapCache: make(map[string]uint64),
+		mapCache: make(map[string]interface{}),
 	}
 }
 
-func (c *Cache) Get(key string) uint64 {
-	if !config.EnableCache {
-		return 0
-	}
+func (c *Cache) Get(key string) interface{} {
 	if val, ok := c.mapCache[key]; ok {
 		return val
 	}
-	return 0
+	return nil
 }
 
-func (c *Cache) Put(key string, value uint64) {
-	if !config.EnableCache {
-		return
-	}
+func (c *Cache) Put(key string, value interface{}) {
 	if c.cache.Len() >= c.capacity {
 		oldest := c.cache.Back()
 		c.cache.Remove(oldest)
@@ -45,9 +39,6 @@ func (c *Cache) Put(key string, value uint64) {
 }
 
 func (c *Cache) Has(key string) bool {
-	if !config.EnableCache {
-		return false
-	}
 	_, ok := c.mapCache[key]
 	return ok
 }

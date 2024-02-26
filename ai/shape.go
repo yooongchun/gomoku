@@ -1,218 +1,67 @@
 package ai
 
-import (
-	"regexp"
-)
+type TypeRole int
+type TypeShape int
+type TypeDirection int
+type TypeShapeCache map[TypeRole]map[TypeDirection]map[int]map[int]TypeShape
 
-var patterns = map[string]*regexp.Regexp{
-	"five":       regexp.MustCompile("11111"),
-	"blockFive":  regexp.MustCompile("211111|111112"),
-	"four":       regexp.MustCompile("011110"),
-	"blockFour":  regexp.MustCompile("10111|11011|11101|211110|211101|211011|210111|011112|101112|110112|111012"),
-	"three":      regexp.MustCompile("011100|011010|010110|001110"),
-	"blockThree": regexp.MustCompile("211100|211010|210110|001112|010112|011012"),
-	"two":        regexp.MustCompile("001100|011000|000110|010100|001010"),
-}
-
-type Score struct {
-	Five       int
-	BlockFive  int
-	Four       int
-	FourFour   int
-	FourThree  int
-	ThreeThree int
-	BlockFour  int
-	Three      int
-	BlockThree int
-	TwoTwo     int
-	Two        int
-	BlockTwo   int
-	One        int
-	BlockOne   int
-	None       int
+// ShapeEnum 可取的形状
+type ShapeEnum struct {
+	LiveFive   TypeShape //11111
+	LiveFour   TypeShape //011110
+	FourFour   TypeShape
+	FourThree  TypeShape
+	ThreeThree TypeShape
+	BlockFour  TypeShape //10111|11011|11101|211110|211101|211011|210111|011112|101112|110112|111012
+	LiveThree  TypeShape //011100|011010|010110|001110
+	BlockThree TypeShape //211100|211010|210110|001112|010112|011012
+	TwoTwo     TypeShape
+	LiveTwo    TypeShape //001100|011000|000110|010100|001010
+	BlockTwo   TypeShape
+	LiveOne    TypeShape
+	BlockOne   TypeShape
+	None       TypeShape
 }
 
 type Point struct {
-	X int
-	Y int
+	x int
+	y int
 }
 
-type Directions struct {
-	// 8个方向
-	Horizontal   Point
-	Vertical     Point
-	Diagonal     Point
-	AntiDiagonal Point
+type Vector Point
+
+type ChessEnum struct {
+	WHITE    TypeRole
+	BLACK    TypeRole
+	EMPTY    TypeRole
+	OBSTACLE TypeRole
 }
 
-var shapes = map[string]int{
-	"FIVE":        5,
-	"BLOCK_FIVE":  50,
-	"FOUR":        4,
-	"FOUR_FOUR":   44, // 双冲四
-	"FOUR_THREE":  43, // 冲四活三
-	"THREE_THREE": 33, // 双三
-	"BLOCK_FOUR":  40,
-	"THREE":       3,
-	"BLOCK_THREE": 30,
-	"TWO_TWO":     22, // 双活二
-	"TWO":         2,
-	"NONE":        0,
+var Chess = &ChessEnum{
+	BLACK:    BLACK,
+	WHITE:    WHITE,
+	EMPTY:    EMPTY,
+	OBSTACLE: OBSTACLE,
 }
-
-var performance = map[string]int{
-	"five":       0,
-	"blockFive":  0,
-	"four":       0,
-	"blockFour":  0,
-	"three":      0,
-	"blockThree": 0,
-	"two":        0,
-	"none":       0,
-	"total":      0,
-}
-
-// getShape function
-func getShape(board [][]int, x, y, offsetX, offsetY, role int) (int, int, int, int) {
-	opponent := -role
-	emptyCount := 0
-	selfCount := 1
-	opponentCount := 0
-	shape := shapes["NONE"]
-
-	// 跳过为空的节点
-	if board[x+offsetX+1][y+offsetY+1] == 0 &&
-		board[x-offsetX+1][y-offsetY+1] == 0 &&
-		board[x+2*offsetX+1][y+2*offsetY+1] == 0 &&
-		board[x-2*offsetX+1][y-2*offsetY+1] == 0 {
-		return shapes["NONE"], selfCount, opponentCount, emptyCount
-	}
-
-	// two 类型占比超过一半，做一下优化
-	// 活二是不需要判断特别严谨的
-	for i := -3; i <= 3; i++ {
-		if i == 0 {
-			continue
-		}
-		nx, ny := x+i*offsetX+1, y+i*offsetY+1
-		if nx < 0 || ny < 0 || nx >= len(board) || ny >= len(board[0]) {
-			continue
-		}
-		currentRole := board[nx][ny]
-		if currentRole == 2 {
-			opponentCount++
-		} else if currentRole == role {
-			selfCount++
-		} else if currentRole == 0 {
-			emptyCount++
-		}
-	}
-	if selfCount == 2 {
-		if opponentCount == 0 {
-			return shapes["TWO"], selfCount, opponentCount, emptyCount
-		} else {
-			return shapes["NONE"], selfCount, opponentCount, emptyCount
-		}
-	}
-
-	emptyCount = 0
-	selfCount = 1
-	opponentCount = 0
-	resultString := "1"
-
-	for i := 1; i <= 5; i++ {
-		nx, ny := x+i*offsetX+1, y+i*offsetY+1
-		if nx < 0 || ny < 0 || nx >= len(board) || ny >= len(board[0]) {
-			break
-		}
-		currentRole := board[nx][ny]
-		if currentRole == 2 {
-			resultString += "2"
-		} else if currentRole == 0 {
-			resultString += "0"
-		} else {
-			if currentRole == role {
-				resultString += "1"
-			} else {
-				resultString += "2"
-			}
-		}
-		if currentRole == 2 || currentRole == opponent {
-			opponentCount++
-			break
-		}
-		if currentRole == 0 {
-			emptyCount++
-		}
-		if currentRole == role {
-			selfCount++
-		}
-	}
-
-	for i := 1; i <= 5; i++ {
-		nx, ny := x-i*offsetX+1, y-i*offsetY+1
-		if nx < 0 || ny < 0 || nx >= len(board) || ny >= len(board[0]) {
-			break
-		}
-		currentRole := board[nx][ny]
-		if currentRole == 2 {
-			resultString = "2" + resultString
-		} else if currentRole == 0 {
-			resultString = "0" + resultString
-		} else {
-			if currentRole == role {
-				resultString = "1" + resultString
-			} else {
-				resultString = "2" + resultString
-			}
-		}
-		if currentRole == 2 || currentRole == opponent {
-			opponentCount++
-			break
-		}
-		if currentRole == 0 {
-			emptyCount++
-		}
-		if currentRole == role {
-			selfCount++
-		}
-	}
-
-	if patterns["five"].MatchString(resultString) {
-		shape = shapes["FIVE"]
-		performance["five"]++
-		performance["total"]++
-	} else if patterns["four"].MatchString(resultString) {
-		shape = shapes["FOUR"]
-		performance["four"]++
-		performance["total"]++
-	} else if patterns["blockFour"].MatchString(resultString) {
-		shape = shapes["BLOCK_FOUR"]
-		performance["blockFour"]++
-		performance["total"]++
-	} else if patterns["three"].MatchString(resultString) {
-		shape = shapes["THREE"]
-		performance["three"]++
-		performance["total"]++
-	} else if patterns["blockThree"].MatchString(resultString) {
-		shape = shapes["BLOCK_THREE"]
-		performance["blockThree"]++
-		performance["total"]++
-	} else if patterns["two"].MatchString(resultString) {
-		shape = shapes["TWO"]
-		performance["two"]++
-		performance["total"]++
-	}
-
-	if selfCount <= 1 || len(resultString) < 5 {
-		return shape, selfCount, opponentCount, emptyCount
-	}
-
-	return shape, selfCount, opponentCount, emptyCount
+var Shapes = &ShapeEnum{
+	LiveFive:   5,
+	LiveFour:   4,
+	FourFour:   44,
+	FourThree:  43,
+	ThreeThree: 33,
+	BlockFour:  40,
+	LiveThree:  3,
+	BlockThree: 30,
+	TwoTwo:     22,
+	LiveTwo:    2,
+	BlockTwo:   20,
+	LiveOne:    1,
+	BlockOne:   10,
+	None:       0,
 }
 
 // countShape function
-func countShape(board [][]int, x, y, offsetX, offsetY, role int) (int, int, int, int, int, int) {
+func countShape(board [][]TypeRole, x, y, offsetX, offsetY int, role TypeRole) (int, int, int, int, int, int) {
 	opponent := -role
 
 	innerEmptyCount := 0 // 棋子中间的内部空位
@@ -226,14 +75,15 @@ func countShape(board [][]int, x, y, offsetX, offsetY, role int) (int, int, int,
 
 	// right
 	for i := 1; i <= 5; i++ {
-		nx, ny := x+i*offsetX+1, y+i*offsetY+1
+		nx, ny := x+i*offsetX, y+i*offsetY
 		if nx < 0 || ny < 0 || nx >= len(board) || ny >= len(board[0]) {
 			break
 		}
 		currentRole := board[nx][ny]
-		if currentRole == 2 || currentRole == opponent {
+		if currentRole == Chess.OBSTACLE || currentRole == opponent {
 			break
 		}
+		totalLength++
 		if currentRole == role {
 			selfCount++
 			sideEmptyCount = 0
@@ -247,9 +97,7 @@ func countShape(board [][]int, x, y, offsetX, offsetY, role int) (int, int, int,
 			} else if innerEmptyCount == 1 {
 				OneEmptySelfCount++
 			}
-		}
-		totalLength++
-		if currentRole == 0 {
+		} else if currentRole == Chess.EMPTY {
 			tempEmptyCount++
 			sideEmptyCount++
 		}
@@ -263,18 +111,19 @@ func countShape(board [][]int, x, y, offsetX, offsetY, role int) (int, int, int,
 	return selfCount, totalLength, noEmptySelfCount, OneEmptySelfCount, innerEmptyCount, sideEmptyCount
 }
 
-// getShapeFast function
-func getShapeFast(board [][]int, x, y, offsetX, offsetY, role int) (int, int) {
-	if board[x+offsetX+1][y+offsetY+1] == 0 &&
-		board[x-offsetX+1][y-offsetY+1] == 0 &&
-		board[x+2*offsetX+1][y+2*offsetY+1] == 0 &&
-		board[x-2*offsetX+1][y-2*offsetY+1] == 0 {
-		return shapes["NONE"], 1
+// GetShapeFast 使用遍历位置的方式实现的形状检测，速度较快，大约是字符串速度的2倍 但理解起来会稍微复杂一些
+func GetShapeFast(board [][]TypeRole, x, y, offsetX, offsetY int, role TypeRole) (TypeShape, int) {
+	// 有一点点优化效果：跳过为空的节点（左右两边空位为2）
+	if board[x+offsetX][y+offsetY] == 0 &&
+		board[x-offsetX][y-offsetY] == 0 &&
+		board[x+2*offsetX][y+2*offsetY] == 0 &&
+		board[x-2*offsetX][y-2*offsetY] == 0 {
+		return Shapes.None, 1
 	}
 
 	selfCount := 1
 	totalLength := 1
-	shape := shapes["NONE"]
+	shape := Shapes.None
 
 	leftEmpty := 0
 	rightEmpty := 0
@@ -295,64 +144,60 @@ func getShapeFast(board [][]int, x, y, offsetX, offsetY, role int) (int, int) {
 		return shape, selfCount
 	}
 	if noEmptySelfCount >= 5 {
-		if rightEmpty > 0 && leftEmpty > 0 {
-			return shapes["FIVE"], selfCount
-		} else {
-			return shapes["BLOCK_FIVE"], selfCount
-		}
+		return Shapes.LiveFive, selfCount
 	}
 	if noEmptySelfCount == 4 {
 		if (rightEmpty >= 1 || rOneEmptySelfCount > rNoEmptySelfCount) && (leftEmpty >= 1 || lOneEmptySelfCount > lNoEmptySelfCount) {
-			return shapes["FOUR"], selfCount
+			return Shapes.LiveFour, selfCount
 		} else if !(rightEmpty == 0 && leftEmpty == 0) {
-			return shapes["BLOCK_FOUR"], selfCount
+			return Shapes.BlockFour, selfCount
 		}
 	}
 	if OneEmptySelfCount == 4 {
-		return shapes["BLOCK_FOUR"], selfCount
+		return Shapes.BlockFour, selfCount
 	}
 	if noEmptySelfCount == 3 {
 		if (rightEmpty >= 2 && leftEmpty >= 1) || (rightEmpty >= 1 && leftEmpty >= 2) {
-			return shapes["THREE"], selfCount
+			return Shapes.LiveThree, selfCount
 		} else {
-			return shapes["BLOCK_THREE"], selfCount
+			return Shapes.BlockThree, selfCount
 		}
 	}
 	if OneEmptySelfCount == 3 {
 		if rightEmpty >= 1 && leftEmpty >= 1 {
-			return shapes["THREE"], selfCount
+			return Shapes.LiveThree, selfCount
 		} else {
-			return shapes["BLOCK_THREE"], selfCount
+			return Shapes.BlockThree, selfCount
 		}
 	}
 	if (noEmptySelfCount == 2 || OneEmptySelfCount == 2) && totalLength > 5 {
-		shape = shapes["TWO"]
+		shape = Shapes.LiveTwo
 	}
 
 	return shape, selfCount
 }
 
-// isFive function
-func isFive(shape int) bool {
-	return shape == shapes["FIVE"] || shape == shapes["BLOCK_FIVE"]
+// IsFive function
+func IsFive(shape TypeShape) bool {
+	return shape == Shapes.LiveFive
 }
 
-// isFour function
-func isFour(shape int) bool {
-	return shape == shapes["FOUR"] || shape == shapes["BLOCK_FOUR"]
+// IsFour function
+func IsFour(shape TypeShape) bool {
+	return shape == Shapes.LiveFour || shape == Shapes.BlockFour
 }
 
-// getAllShapesOfPoint function
-func getAllShapesOfPoint(shapeCache map[int]map[int]map[int]map[int]int, x, y, role int) []int {
-	roles := []int{role}
-	if role == 0 {
-		roles = []int{1, -1}
+// GetAllShapesOfPoint function
+func GetAllShapesOfPoint(shapeCache TypeShapeCache, x, y int, role TypeRole) []TypeShape {
+	roles := []TypeRole{role}
+	if role == Chess.EMPTY {
+		roles = []TypeRole{Chess.BLACK, Chess.WHITE}
 	}
-	var result []int
+	var result []TypeShape
 	for _, r := range roles {
-		for d := 0; d <= 3; d++ {
+		for _, d := range []TypeDirection{HORIZONTAL, VERTICAL, DIAGONAL, ANTI_DIAGONAL} {
 			shape := shapeCache[r][d][x][y]
-			if shape > 0 {
+			if shape != Shapes.None {
 				result = append(result, shape)
 			}
 		}

@@ -1,11 +1,12 @@
-package ai
+package tests
 
 import (
+	"gomoku/ai"
 	"testing"
 )
 
 func TestZobristCache(t *testing.T) {
-	z := NewZobristCache(8)
+	z := ai.NewZobristCache(8)
 
 	if z.GetHash() != 0 {
 		t.Errorf("Expected 0 but got %v", z.GetHash())
