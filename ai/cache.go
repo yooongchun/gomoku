@@ -7,29 +7,29 @@ import (
 type Cache struct {
 	capacity int
 	cache    *list.List
-	mapCache map[string]interface{}
+	mapCache map[uint64]interface{}
 }
 
 func NewCache(capacity int) *Cache {
 	return &Cache{
 		capacity: capacity,
 		cache:    list.New(),
-		mapCache: make(map[string]interface{}),
+		mapCache: make(map[uint64]interface{}),
 	}
 }
 
-func (c *Cache) Get(key string) interface{} {
+func (c *Cache) Get(key uint64) interface{} {
 	if val, ok := c.mapCache[key]; ok {
 		return val
 	}
 	return nil
 }
 
-func (c *Cache) Put(key string, value interface{}) {
+func (c *Cache) Put(key uint64, value interface{}) {
 	if c.cache.Len() >= c.capacity {
 		oldest := c.cache.Back()
 		c.cache.Remove(oldest)
-		delete(c.mapCache, oldest.Value.(string))
+		delete(c.mapCache, oldest.Value.(uint64))
 	}
 
 	if _, ok := c.mapCache[key]; !ok {
@@ -38,7 +38,7 @@ func (c *Cache) Put(key string, value interface{}) {
 	c.mapCache[key] = value
 }
 
-func (c *Cache) Has(key string) bool {
+func (c *Cache) Has(key uint64) bool {
 	_, ok := c.mapCache[key]
 	return ok
 }

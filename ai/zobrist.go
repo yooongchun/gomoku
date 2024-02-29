@@ -6,7 +6,7 @@ import (
 
 type ZobristCache struct {
 	size         int
-	zobristTable [][][]uint64
+	zobristTable [][]map[TypeRole]uint64
 	hash         uint64
 }
 
@@ -19,14 +19,14 @@ func NewZobristCache(size int) *ZobristCache {
 	return z
 }
 
-func (z *ZobristCache) initializeZobristTable(size int) [][][]uint64 {
-	table := make([][][]uint64, size)
+func (z *ZobristCache) initializeZobristTable(size int) [][]map[TypeRole]uint64 {
+	table := make([][]map[TypeRole]uint64, size)
 	for i := 0; i < size; i++ {
-		table[i] = make([][]uint64, size)
+		table[i] = make([]map[TypeRole]uint64, size)
 		for j := 0; j < size; j++ {
-			table[i][j] = []uint64{
-				z.randomBitString(), // black
-				z.randomBitString(), // white
+			table[i][j] = map[TypeRole]uint64{
+				Chess.BLACK: z.randomBitString(), // black
+				Chess.WHITE: z.randomBitString(), // white
 			}
 		}
 	}
@@ -37,7 +37,7 @@ func (z *ZobristCache) randomBitString() uint64 {
 	return rand.Uint64()
 }
 
-func (z *ZobristCache) TogglePiece(x, y, role int) {
+func (z *ZobristCache) TogglePiece(x, y int, role TypeRole) {
 	z.hash ^= z.zobristTable[x][y][role]
 }
 

@@ -9,26 +9,40 @@ type TypeShapeCache map[TypeRole]map[TypeDirection]map[int]map[int]TypeShape
 type TypePointCache map[TypeRole]map[TypeShape]map[int]bool
 
 type TypeHistory struct {
-	position int
-	role     TypeRole
+	x    int
+	y    int
+	role TypeRole
+}
+
+type TypeEvaluateCache struct {
+	role  TypeRole
+	score int
+}
+
+type TypeValuableMoveCache struct {
+	role      TypeRole
+	moves     []Point
+	depth     int
+	onlyThree bool
+	onlyFour  bool
 }
 
 // ShapeEnum 可取的形状
 type ShapeEnum struct {
-	LiveFive   TypeShape //11111
-	LiveFour   TypeShape //011110
-	FourFour   TypeShape
-	FourThree  TypeShape
-	ThreeThree TypeShape
-	BlockFour  TypeShape //10111|11011|11101|211110|211101|211011|210111|011112|101112|110112|111012
-	LiveThree  TypeShape //011100|011010|010110|001110
-	BlockThree TypeShape //211100|211010|210110|001112|010112|011012
-	TwoTwo     TypeShape
-	LiveTwo    TypeShape //001100|011000|000110|010100|001010
-	BlockTwo   TypeShape
-	LiveOne    TypeShape
-	BlockOne   TypeShape
-	None       TypeShape
+	FIVE        TypeShape //11111
+	FOUR        TypeShape //011110
+	FOUR_FOUR   TypeShape
+	FOUR_THREE  TypeShape
+	THREE_THREE TypeShape
+	BLOCK_FOUR  TypeShape //10111|11011|11101|211110|211101|211011|210111|011112|101112|110112|111012
+	THREE       TypeShape //011100|011010|010110|001110
+	BLOCK_THREE TypeShape //211100|211010|210110|001112|010112|011012
+	TWO_TWO     TypeShape
+	TWO         TypeShape //001100|011000|000110|010100|001010
+	BLOCK_TWO   TypeShape
+	ONE         TypeShape
+	BLOCK_ONE   TypeShape
+	NONE        TypeShape
 }
 
 type Point struct {
@@ -52,22 +66,23 @@ var Chess = &ChessEnum{
 	OBSTACLE: OBSTACLE,
 }
 var Roles = []TypeRole{Chess.BLACK, Chess.WHITE}
-var Directions = []TypeDirection{HORIZONTAL, VERTICAL, DIAGONAL, ANTI_DIAGONAL}
+var DirectionVec = []Vector{{0, 1}, {1, 0}, {1, 1}, {1, -1}}
+var DirectionEnum = []TypeDirection{HORIZONTAL, VERTICAL, DIAGONAL, ANTI_DIAGONAL}
 var Shapes = &ShapeEnum{
-	LiveFive:   5,
-	LiveFour:   4,
-	FourFour:   44,
-	FourThree:  43,
-	ThreeThree: 33,
-	BlockFour:  40,
-	LiveThree:  3,
-	BlockThree: 30,
-	TwoTwo:     22,
-	LiveTwo:    2,
-	BlockTwo:   20,
-	LiveOne:    1,
-	BlockOne:   10,
-	None:       0,
+	FIVE:        5,
+	FOUR:        4,
+	FOUR_FOUR:   44,
+	FOUR_THREE:  43,
+	THREE_THREE: 33,
+	BLOCK_FOUR:  40,
+	THREE:       3,
+	BLOCK_THREE: 30,
+	TWO_TWO:     22,
+	TWO:         2,
+	BLOCK_TWO:   20,
+	ONE:         1,
+	BLOCK_ONE:   10,
+	NONE:        0,
 }
 var ShapeFields []TypeShape
 
@@ -138,12 +153,12 @@ func GetShapeFast(board [][]TypeRole, x, y, offsetX, offsetY int, role TypeRole)
 		board[x-offsetX][y-offsetY] == 0 &&
 		board[x+2*offsetX][y+2*offsetY] == 0 &&
 		board[x-2*offsetX][y-2*offsetY] == 0 {
-		return Shapes.None, 1
+		return Shapes.NONE, 1
 	}
 
 	selfCount := 1
 	totalLength := 1
-	shape := Shapes.None
+	shape := Shapes.NONE
 
 	leftEmpty := 0
 	rightEmpty := 0
@@ -164,34 +179,34 @@ func GetShapeFast(board [][]TypeRole, x, y, offsetX, offsetY int, role TypeRole)
 		return shape, selfCount
 	}
 	if noEmptySelfCount >= 5 {
-		return Shapes.LiveFive, selfCount
+		return Shapes.FIVE, selfCount
 	}
 	if noEmptySelfCount == 4 {
 		if (rightEmpty >= 1 || rOneEmptySelfCount > rNoEmptySelfCount) && (leftEmpty >= 1 || lOneEmptySelfCount > lNoEmptySelfCount) {
-			return Shapes.LiveFour, selfCount
+			return Shapes.FOUR, selfCount
 		} else if !(rightEmpty == 0 && leftEmpty == 0) {
-			return Shapes.BlockFour, selfCount
+			return Shapes.BLOCK_FOUR, selfCount
 		}
 	}
 	if OneEmptySelfCount == 4 {
-		return Shapes.BlockFour, selfCount
+		return Shapes.BLOCK_FOUR, selfCount
 	}
 	if noEmptySelfCount == 3 {
 		if (rightEmpty >= 2 && leftEmpty >= 1) || (rightEmpty >= 1 && leftEmpty >= 2) {
-			return Shapes.LiveThree, selfCount
+			return Shapes.THREE, selfCount
 		} else {
-			return Shapes.BlockThree, selfCount
+			return Shapes.BLOCK_THREE, selfCount
 		}
 	}
 	if OneEmptySelfCount == 3 {
 		if rightEmpty >= 1 && leftEmpty >= 1 {
-			return Shapes.LiveThree, selfCount
+			return Shapes.THREE, selfCount
 		} else {
-			return Shapes.BlockThree, selfCount
+			return Shapes.BLOCK_THREE, selfCount
 		}
 	}
 	if (noEmptySelfCount == 2 || OneEmptySelfCount == 2) && totalLength > 5 {
-		shape = Shapes.LiveTwo
+		shape = Shapes.TWO
 	}
 
 	return shape, selfCount
@@ -199,12 +214,12 @@ func GetShapeFast(board [][]TypeRole, x, y, offsetX, offsetY int, role TypeRole)
 
 // IsFive function
 func IsFive(shape TypeShape) bool {
-	return shape == Shapes.LiveFive
+	return shape == Shapes.FIVE
 }
 
 // IsFour function
 func IsFour(shape TypeShape) bool {
-	return shape == Shapes.LiveFour || shape == Shapes.BlockFour
+	return shape == Shapes.FOUR || shape == Shapes.BLOCK_FOUR
 }
 
 // GetAllShapesOfPoint function
@@ -217,7 +232,7 @@ func GetAllShapesOfPoint(shapeCache TypeShapeCache, x, y int, role TypeRole) []T
 	for _, r := range roles {
 		for _, d := range []TypeDirection{HORIZONTAL, VERTICAL, DIAGONAL, ANTI_DIAGONAL} {
 			shape := shapeCache[r][d][x][y]
-			if shape != Shapes.None {
+			if shape != Shapes.NONE {
 				result = append(result, shape)
 			}
 		}

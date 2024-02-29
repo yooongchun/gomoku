@@ -1,20 +1,20 @@
 package ai
 
 const (
-	ScoreFive       = 10000000
-	ScoreLiveFour   = 1000000
-	ScoreFourFour   = 1000000
-	ScoreFourThree  = 1000000
-	ScoreThreeThree = 1000000
-	ScoreBlockFour  = 1500
-	ScoreLiveThree  = 1000
-	ScoreBlockThree = 150
-	ScoreTwoTwo     = 200
-	ScoreLiveTwo    = 100
-	ScoreBlockTwo   = 15
-	ScoreOne        = 10
-	ScoreBlockOne   = 1
-	ScoreNone       = 0
+	SCORE_FIVE        = 10000000
+	SCORE_FOUR        = 1000000
+	SCORE_FOUR_FOUR   = 1000000
+	SCORE_FOUR_THREE  = 1000000
+	SCORE_THREE_THREE = 1000000
+	SCORE_BLOCK_FOUR  = 1500
+	SCORE_THREE       = 1000
+	SCORE_BLOCK_THREE = 150
+	SCORE_TWO_TWO     = 200
+	SCORE_TWO         = 100
+	SCORE_BLOCK_TWO   = 15
+	SCORE_ONE         = 10
+	SCORE_BLOCK_ONE   = 1
+	SCORE_NONE        = 0
 )
 
 const (
