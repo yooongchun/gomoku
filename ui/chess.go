@@ -1,39 +1,48 @@
 package ui
 
 import (
+	"fmt"
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/canvas"
-	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/theme"
+	"image/jpeg"
+	"os"
 )
 
 const (
-	boardSize = 15
-	cellSize  = 30
+	SIZE      = 15
+	GRID_SIZE = 30
+	MARGIN_X  = 10
+	MARGIN_Y  = 10
+	BSIZE     = GRID_SIZE * SIZE
 )
 
 func Show() {
 	a := app.New()
-	w := a.NewWindow("五子棋")
+	win := a.NewWindow("Gomoku")
 
-	board := make([][]*canvas.Rectangle, boardSize)
-	for i := range board {
-		board[i] = make([]*canvas.Rectangle, boardSize)
-		for j := range board[i] {
-			board[i][j] = canvas.NewRectangle(theme.BackgroundColor())
-			board[i][j].SetMinSize(fyne.NewSize(cellSize, cellSize))
-		}
+	file, err := os.Open("ui/assets/img/board.jpg")
+	if err != nil {
+		fmt.Println("Error: File could not be opened")
+		os.Exit(1)
+	}
+	defer file.Close()
+
+	img1, err := jpeg.Decode(file)
+	if err != nil {
+		fmt.Println("Error: File could not be decoded")
+		os.Exit(1)
 	}
 
-	grid := container.NewGridWithRows(boardSize)
-	for _, row := range board {
-		for _, cell := range row {
-			grid.Add(cell)
-		}
-	}
+	fmt.Println(img1.Bounds())
 
-	w.SetContent(grid)
-	w.Resize(fyne.NewSize(boardSize*cellSize, boardSize*cellSize))
-	w.ShowAndRun()
+	img := canvas.NewImageFromFile("ui/assets/img/board.jpg")
+	img.FillMode = canvas.ImageFillOriginal
+
+	//content := container.NewWithoutLayout()
+	//content.Add(img)
+
+	win.Resize(fyne.NewSize(800, 600))
+	win.SetContent(img)
+	win.ShowAndRun()
 }
