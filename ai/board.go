@@ -45,33 +45,33 @@ func NewBoard(size int, firstRole TypeRole) *Board {
 func (b *Board) IsGameOver() bool {
 	hash := b.Zobrist.GetHash()
 
-	val := b.GameOverCache.Get(hash)
+	val := b.GameOverCache.get(hash)
 	if val != nil {
 		return val.(bool)
 	}
 
 	if b.GetWinner() != Chess.EMPTY {
-		b.GameOverCache.Put(hash, true)
+		b.GameOverCache.put(hash, true)
 		return true
 	}
 	// 没有赢家但是还有空位，说明游戏还在进行中
 	for i := 0; i < b.Size; i++ {
 		for j := 0; j < b.Size; j++ {
 			if b.Board[i][j] == Chess.EMPTY {
-				b.GameOverCache.Put(hash, false)
+				b.GameOverCache.put(hash, false)
 				return false
 			}
 		}
 	}
 	// 没有赢家并且没有空位，游戏结束
-	b.GameOverCache.Put(hash, true)
+	b.GameOverCache.put(hash, true)
 	return true
 }
 
 func (b *Board) GetWinner() TypeRole {
 	hash := b.Zobrist.GetHash()
 
-	val := b.WinnerCache.Get(hash)
+	val := b.WinnerCache.get(hash)
 	if val != nil {
 		return val.(TypeRole)
 	}
@@ -90,13 +90,13 @@ func (b *Board) GetWinner() TypeRole {
 					count++
 				}
 				if count >= 5 {
-					b.WinnerCache.Put(hash, b.Board[i][j])
+					b.WinnerCache.put(hash, b.Board[i][j])
 					return b.Board[i][j]
 				}
 			}
 		}
 	}
-	b.WinnerCache.Put(hash, Chess.EMPTY)
+	b.WinnerCache.put(hash, Chess.EMPTY)
 	return 0
 }
 
@@ -127,7 +127,7 @@ func (b *Board) Put(i, j int, role TypeRole) bool {
 	b.Board[i][j] = role
 	b.History = append(b.History, TypeHistory{i, j, role})
 	b.Zobrist.TogglePiece(i, j, role)
-	b.Evaluator.Move(i, j, role)
+	b.Evaluator.move(i, j, role)
 	b.Role *= -1 // Switch role
 	return true
 }
@@ -142,14 +142,14 @@ func (b *Board) Undo() bool {
 	b.Board[lastMove.x][lastMove.y] = Chess.EMPTY // Remove the piece from the board
 	b.Role = lastMove.role                        // Switch back to the previous player
 	b.Zobrist.TogglePiece(lastMove.x, lastMove.y, lastMove.role)
-	b.Evaluator.Undo(lastMove.x, lastMove.y)
+	b.Evaluator.undo(lastMove.x, lastMove.y)
 	return true
 }
 
 func (b *Board) GetValuableMoves(role TypeRole, depth int, onlyThree, onlyFour bool) []Point {
 	hash := b.Zobrist.GetHash()
 
-	moveCache := b.ValuableMovesCache.Get(hash)
+	moveCache := b.ValuableMovesCache.get(hash)
 	if moveCache != nil {
 		prevMoveCache := moveCache.(TypeValuableMoveCache)
 		if prevMoveCache.role == role && prevMoveCache.depth == depth && prevMoveCache.onlyThree == onlyThree && prevMoveCache.onlyFour == onlyFour {
@@ -167,7 +167,7 @@ func (b *Board) GetValuableMoves(role TypeRole, depth int, onlyThree, onlyFour b
 		}
 	}
 
-	b.ValuableMovesCache.Put(hash, TypeValuableMoveCache{
+	b.ValuableMovesCache.put(hash, TypeValuableMoveCache{
 		role:      role,
 		moves:     moves,
 		depth:     depth,
@@ -181,13 +181,13 @@ func (b *Board) GetValuableMoves(role TypeRole, depth int, onlyThree, onlyFour b
 func (b *Board) Display(extraPoints []Point) string {
 	extraPositions := make(map[int]bool, len(extraPoints))
 	for _, point := range extraPoints {
-		extraPositions[Coordinate2Position(point.x, point.y, b.Size)] = true
+		extraPositions[coordinate2Position(point.x, point.y, b.Size)] = true
 	}
 
 	var result strings.Builder
 	for i := 0; i < b.Size; i++ {
 		for j := 0; j < b.Size; j++ {
-			position := Coordinate2Position(i, j, b.Size)
+			position := coordinate2Position(i, j, b.Size)
 			if ok, exist := extraPositions[position]; ok && exist {
 				result.WriteString("? ")
 				continue
@@ -208,7 +208,7 @@ func (b *Board) Display(extraPoints []Point) string {
 func (b *Board) Evaluate(role TypeRole) int {
 	hash := b.Zobrist.GetHash()
 
-	evaCache := b.EvaluateCache.Get(hash)
+	evaCache := b.EvaluateCache.get(hash)
 	if evaCache != nil {
 		prevCache := evaCache.(TypeEvaluateCache)
 		if prevCache.role == role {
@@ -221,10 +221,10 @@ func (b *Board) Evaluate(role TypeRole) int {
 	if winner != Chess.EMPTY {
 		score = SCORE_FIVE * int(winner) * int(role)
 	} else {
-		score = b.Evaluator.Evaluate(role)
+		score = b.Evaluator.evaluate(role)
 	}
 
-	b.EvaluateCache.Put(hash, TypeEvaluateCache{
+	b.EvaluateCache.put(hash, TypeEvaluateCache{
 		role:  role,
 		score: score,
 	})

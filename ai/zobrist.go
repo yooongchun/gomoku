@@ -15,25 +15,25 @@ func NewZobristCache(size int) *ZobristCache {
 		size: size,
 		hash: 0,
 	}
-	z.zobristTable = z.initializeZobristTable(size)
+	z.zobristTable = initializeZobristTable(size)
 	return z
 }
 
-func (z *ZobristCache) initializeZobristTable(size int) [][]map[TypeRole]uint64 {
+func initializeZobristTable(size int) [][]map[TypeRole]uint64 {
 	table := make([][]map[TypeRole]uint64, size)
 	for i := 0; i < size; i++ {
 		table[i] = make([]map[TypeRole]uint64, size)
 		for j := 0; j < size; j++ {
 			table[i][j] = map[TypeRole]uint64{
-				Chess.BLACK: z.randomBitString(), // black
-				Chess.WHITE: z.randomBitString(), // white
+				Chess.BLACK: randomBit64(), // black
+				Chess.WHITE: randomBit64(), // white
 			}
 		}
 	}
 	return table
 }
 
-func (z *ZobristCache) randomBitString() uint64 {
+func randomBit64() uint64 {
 	return rand.Uint64()
 }
 

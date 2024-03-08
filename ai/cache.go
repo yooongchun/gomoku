@@ -18,14 +18,14 @@ func NewCache(capacity int) *Cache {
 	}
 }
 
-func (c *Cache) Get(key uint64) interface{} {
+func (c *Cache) get(key uint64) interface{} {
 	if val, ok := c.mapCache[key]; ok {
 		return val
 	}
 	return nil
 }
 
-func (c *Cache) Put(key uint64, value interface{}) {
+func (c *Cache) put(key uint64, value interface{}) {
 	if c.cache.Len() >= c.capacity {
 		oldest := c.cache.Back()
 		c.cache.Remove(oldest)
@@ -38,7 +38,7 @@ func (c *Cache) Put(key uint64, value interface{}) {
 	c.mapCache[key] = value
 }
 
-func (c *Cache) Has(key uint64) bool {
+func (c *Cache) has(key uint64) bool {
 	_, ok := c.mapCache[key]
 	return ok
 }

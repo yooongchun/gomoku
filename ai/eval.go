@@ -121,7 +121,7 @@ func NewEvaluate(size int) *Evaluate {
 	}
 }
 
-func (e *Evaluate) Move(x, y int, role TypeRole) {
+func (e *Evaluate) move(x, y int, role TypeRole) {
 	// 清空记录
 	for _, d := range DirectionEnum {
 		e.shapeCache[role][d][x][y] = Shapes.NONE
@@ -136,7 +136,7 @@ func (e *Evaluate) Move(x, y int, role TypeRole) {
 	e.history = append(e.history, TypeHistory{x, y, role})
 }
 
-func (e *Evaluate) Undo(x, y int) {
+func (e *Evaluate) undo(x, y int) {
 	e.board[x+1][y+1] = Chess.EMPTY // Adjust for the added wall
 	e.updatePoint(x, y)
 	e.history = e.history[:len(e.history)-1]
@@ -161,7 +161,7 @@ func (e *Evaluate) getPointInLine() map[TypeShape]map[int]bool {
 				for _, sign := range []int{1, -1} {
 					for step := 1; step <= Config.InLineDistance; step++ {
 						nx, ny := his.x+sign*step*vec.x, his.y+sign*step*vec.y
-						position := Coordinate2Position(nx, ny, e.size)
+						position := coordinate2Position(nx, ny, e.size)
 						// 检测是否到达边界
 						if nx < 0 || nx >= e.size || ny < 0 || ny >= e.size {
 							break
@@ -211,7 +211,10 @@ func (e *Evaluate) getPoints(role TypeRole, depth int, vct, vcf bool) map[TypeSh
 	for _, shape := range ShapeFields {
 		points[shape] = make(map[int]bool)
 	}
-	lastPoints := e.history[len(e.history)-4:]
+	lastPoints := make([]Point, len(e.history[len(e.history)-4:]))
+	for _, h := range e.history[len(e.history)-4:] {
+		lastPoints = append(lastPoints, Point{h.x, h.y})
+	}
 	for _, r := range Roles {
 		for i := 0; i < e.size; i++ {
 			for j := 0; j < e.size; j++ {
@@ -266,7 +269,7 @@ func (e *Evaluate) getPoints(role TypeRole, depth int, vct, vcf bool) map[TypeSh
 								if shape == Shapes.BLOCK_FOUR && len(GetAllShapesOfPoint(e.shapeCache, i, j, Chess.EMPTY)) == 1 {
 									continue
 								}
-								if shape == Shapes.BLOCK_FOUR && !HasInLine(point, lastPoints, e.size) {
+								if shape == Shapes.BLOCK_FOUR && !hasInLine(point, lastPoints, e.size) {
 									continue
 								}
 							}
@@ -277,7 +280,7 @@ func (e *Evaluate) getPoints(role TypeRole, depth int, vct, vcf bool) map[TypeSh
 							continue
 						}
 					}
-					if depth > 2 && (shape == Shapes.TWO || shape == Shapes.TWO_TWO || shape == Shapes.BLOCK_THREE) && !HasInLine(point, lastPoints, e.size) {
+					if depth > 2 && (shape == Shapes.TWO || shape == Shapes.TWO_TWO || shape == Shapes.BLOCK_THREE) && !hasInLine(point, lastPoints, e.size) {
 						continue
 					}
 					points[shape][point] = true
@@ -436,7 +439,7 @@ func (e *Evaluate) updateSinglePoint(x, y int, role TypeRole, direction *Vector)
 
 	return score
 }
-func (e *Evaluate) Evaluate(role TypeRole) int {
+func (e *Evaluate) evaluate(role TypeRole) int {
 	blackScore, whiteScore := 0, 0
 	for i := 0; i < e.size; i++ {
 		for j := 0; j < e.size; j++ {
@@ -538,7 +541,7 @@ func mergeMaps(maps ...map[int]bool) map[int]bool {
 	return result
 }
 
-func (e *Evaluate) Display() {
+func (e *Evaluate) display() {
 	result := ""
 	for i := 1; i < e.size+1; i++ {
 		for j := 1; j < e.size+1; j++ {
