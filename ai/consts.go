@@ -1,6 +1,7 @@
 package ai
 
 const (
+	SCORE_MAX         = 1000000000
 	SCORE_FIVE        = 10000000
 	SCORE_FOUR        = 1000000
 	SCORE_FOUR_FOUR   = 1000000
