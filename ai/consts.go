@@ -1,7 +1,9 @@
 package ai
 
+import "math"
+
 const (
-	SCORE_FIVE        = 10000000
+	SCORE_FIVE        = math.MaxInt64
 	SCORE_FOUR        = 1000000
 	SCORE_FOUR_FOUR   = 1000000
 	SCORE_FOUR_THREE  = 1000000
