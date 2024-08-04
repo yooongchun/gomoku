@@ -2,25 +2,30 @@ package ai
 
 import "reflect"
 
+type TypeChess int
 type TypeRole int
 type TypeShape int
 type TypeDirection int
-type TypeShapeCache map[TypeRole]map[TypeDirection]map[int]map[int]TypeShape
-type TypePointCache map[TypeRole]map[TypeShape]map[int]bool
+type TypeShapeCache map[TypeChess]map[TypeDirection]map[int]map[int]TypeShape
+type TypePointCache map[TypeChess]map[TypeShape]map[int]bool
+
+type Point struct {
+	x int
+	y int
+}
 
 type TypeHistory struct {
-	x    int
-	y    int
-	role TypeRole
+	point Point
+	chess TypeChess
 }
 
 type TypeEvaluateCache struct {
-	role  TypeRole
+	chess TypeChess
 	score int
 }
 
 type TypeValuableMoveCache struct {
-	role      TypeRole
+	role      TypeChess
 	moves     []Point
 	depth     int
 	onlyThree bool
@@ -45,28 +50,7 @@ type ShapeEnum struct {
 	NONE        TypeShape
 }
 
-type Point struct {
-	x int
-	y int
-}
-
-type Vector Point
-
-type ChessEnum struct {
-	WHITE    TypeRole
-	BLACK    TypeRole
-	EMPTY    TypeRole
-	OBSTACLE TypeRole
-}
-
-var Chess = &ChessEnum{
-	BLACK:    BLACK,
-	WHITE:    WHITE,
-	EMPTY:    EMPTY,
-	OBSTACLE: OBSTACLE,
-}
-var Roles = []TypeRole{Chess.BLACK, Chess.WHITE}
-var DirectionVec = []Vector{{0, 1}, {1, 0}, {1, 1}, {1, -1}}
+var DirectionVec = []Point{{0, 1}, {1, 0}, {1, 1}, {1, -1}}
 var DirectionEnum = []TypeDirection{HORIZONTAL, VERTICAL, DIAGONAL, ANTI_DIAGONAL}
 var Shapes = &ShapeEnum{
 	FIVE:        5,
@@ -96,7 +80,7 @@ func init() {
 }
 
 // countShape function
-func countShape(board [][]TypeRole, x, y, offsetX, offsetY int, role TypeRole) (int, int, int, int, int, int) {
+func countShape(board [][]TypeChess, x, y, offsetX, offsetY int, role TypeChess) (int, int, int, int, int, int) {
 	opponent := -role
 
 	innerEmptyCount := 0 // 棋子中间的内部空位
@@ -115,7 +99,7 @@ func countShape(board [][]TypeRole, x, y, offsetX, offsetY int, role TypeRole) (
 			break
 		}
 		currentRole := board[nx][ny]
-		if currentRole == Chess.OBSTACLE || currentRole == opponent {
+		if currentRole == CHESS_OBSTACLE || currentRole == opponent {
 			break
 		}
 		totalLength++
@@ -132,7 +116,7 @@ func countShape(board [][]TypeRole, x, y, offsetX, offsetY int, role TypeRole) (
 			} else if innerEmptyCount == 1 {
 				OneEmptySelfCount++
 			}
-		} else if currentRole == Chess.EMPTY {
+		} else if currentRole == CHESS_EMPTY {
 			tempEmptyCount++
 			sideEmptyCount++
 		}
@@ -147,7 +131,7 @@ func countShape(board [][]TypeRole, x, y, offsetX, offsetY int, role TypeRole) (
 }
 
 // GetShapeFast 使用遍历位置的方式实现的形状检测，速度较快，大约是字符串速度的2倍 但理解起来会稍微复杂一些
-func GetShapeFast(board [][]TypeRole, x, y, offsetX, offsetY int, role TypeRole) (TypeShape, int) {
+func GetShapeFast(board [][]TypeChess, x, y, offsetX, offsetY int, role TypeChess) (TypeShape, int) {
 	// 有一点点优化效果：跳过为空的节点（左右两边空位为2）
 	if board[x+offsetX][y+offsetY] == 0 &&
 		board[x-offsetX][y-offsetY] == 0 &&
@@ -223,13 +207,13 @@ func IsFour(shape TypeShape) bool {
 }
 
 // GetAllShapesOfPoint function
-func GetAllShapesOfPoint(shapeCache TypeShapeCache, x, y int, role TypeRole) []TypeShape {
-	roles := []TypeRole{role}
-	if role == Chess.EMPTY {
-		roles = Roles
+func GetAllShapesOfPoint(shapeCache TypeShapeCache, x, y int, chess TypeChess) []TypeShape {
+	chesses := []TypeChess{chess}
+	if chess == CHESS_EMPTY {
+		chesses = []TypeChess{CHESS_BLACK, CHESS_WHITE}
 	}
 	var result []TypeShape
-	for _, r := range roles {
+	for _, r := range chesses {
 		for _, d := range []TypeDirection{HORIZONTAL, VERTICAL, DIAGONAL, ANTI_DIAGONAL} {
 			shape := shapeCache[r][d][x][y]
 			if shape != Shapes.NONE {

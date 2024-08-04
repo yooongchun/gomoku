@@ -1,7 +1,8 @@
 package main
 
-import "gomoku/ui"
+import "gomoku/ai"
 
 func main() {
-	ui.Show()
+	//ui.Show()
+	ai.NewPlay(15, ai.ROLE_HUMAN).Play()
 }

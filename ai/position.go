@@ -31,8 +31,8 @@ func IsAllInLine(p int, arr []int, size int) bool {
 }
 
 func HasInLine(p int, arr []TypeHistory, size int) bool {
-	for _, val := range arr {
-		if IsLine(p, Coordinate2Position(val.x, val.y, size), size) {
+	for _, op := range arr {
+		if IsLine(p, Coordinate2Position(op.point.x, op.point.y, size), size) {
 			return true
 		}
 	}
