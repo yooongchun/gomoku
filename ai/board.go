@@ -168,7 +168,7 @@ func (b *Board) Move(point Point) {
 	b.board[point.x][point.y] = b.current
 	b.history = append(b.history, TypeHistory{point, b.current})
 	b.zobrist.TogglePiece(point.x, point.y, b.current)
-	b.evaluator.Move(point, b.current)
+	//b.evaluator.Move(point, b.current)
 	b.togglePiece()
 }
 func (b *Board) Undo() {
@@ -218,6 +218,10 @@ func (b *Board) GetValuableMoves(role TypeChess, depth int, onlyThree, onlyFour 
 }
 
 func (b *Board) Display(extraPoints []Point) {
+	fmt.Println(b.GetBoardString(extraPoints))
+}
+
+func (b *Board) GetBoardString(extraPoints []Point) string {
 	extraPositions := make(map[int]bool, len(extraPoints))
 	for _, point := range extraPoints {
 		extraPositions[Coordinate2Position(point.x, point.y, b.size)] = true
@@ -250,7 +254,7 @@ func (b *Board) Display(extraPoints []Point) {
 		}
 		result.WriteString("\n") // New line at the end of each row
 	}
-	fmt.Println(result.String())
+	return result.String()
 }
 func (b *Board) Evaluate(chess TypeChess) int {
 	hash := b.zobrist.GetHash()

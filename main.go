@@ -1,6 +1,8 @@
 package main
 
-import "gomoku/ai"
+import (
+	"gomoku/ai"
+)
 
 func main() {
 	//ui.Show()

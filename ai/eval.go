@@ -1,7 +1,6 @@
 package ai
 
 import (
-	"fmt"
 	"time"
 )
 
@@ -63,16 +62,16 @@ var performance = &PerformanceEnum{
 }
 
 type Evaluate struct {
-	size        int
-	board       [][]TypeChess
-	blackScores [][]int
-	whiteScores [][]int
-	history     []TypeHistory  // 记录历史 [position, role]
-	shapeCache  TypeShapeCache // 缓存每个点位的分数，避免重复计算
-	pointCache  TypePointCache // 缓存每个形状对应的点位
+	size       int
+	board      [][]TypeChess
+	scores     map[TypeChess][][]int
+	history    []TypeHistory  // 记录历史 [position, role]
+	shapeCache TypeShapeCache // 缓存每个点位的分数，避免重复计算
+	pointCache TypePointCache // 缓存每个形状对应的点位
 }
 
 func NewEvaluate(size int) *Evaluate {
+	// 初始化board，带边框
 	board := make([][]TypeChess, size+2)
 	for i := 0; i < size+2; i++ {
 		board[i] = make([]TypeChess, size+2)
@@ -82,59 +81,65 @@ func NewEvaluate(size int) *Evaluate {
 			}
 		}
 	}
-	blackScores := make([][]int, size)
-	whiteScores := make([][]int, size)
+	// 黑白双方的得分
+	scores := make(map[TypeChess][][]int, 2)
 	for i := 0; i < size; i++ {
-		blackScores[i] = make([]int, size)
-		whiteScores[i] = make([]int, size)
+		scores[CHESS_BLACK] = make([][]int, size)
+		scores[CHESS_WHITE] = make([][]int, size)
 	}
-	// 缓存每个点位的分数，避免重复计算
+	// 缓存每个点位的形状，避免重复计算
 	shapeCache := make(TypeShapeCache, 2)
-	for _, r := range []TypeChess{CHESS_BLACK, CHESS_WHITE} {
-		shapeCache[r] = make(map[TypeDirection]map[int]map[int]TypeShape, 4)
-		for _, direction := range DirectionEnum {
-			shapeCache[r][direction] = make(map[int]map[int]TypeShape, size)
-			for i := 0; i < size; i++ {
-				shapeCache[r][direction][i] = make(map[int]TypeShape, size)
-				for j := 0; j < size; j++ {
-					shapeCache[r][direction][i][j] = Shapes.NONE
-				}
+	shapeCache[CHESS_BLACK] = make(map[TypeDirection][][]TypeShape, 4)
+	shapeCache[CHESS_WHITE] = make(map[TypeDirection][][]TypeShape, 4)
+	for _, direction := range DirectionEnum {
+		shapeCache[CHESS_BLACK][direction] = make([][]TypeShape, size)
+		shapeCache[CHESS_WHITE][direction] = make([][]TypeShape, size)
+		for i := 0; i < size; i++ {
+			shapeCache[CHESS_WHITE][direction][i] = make([]TypeShape, size)
+			shapeCache[CHESS_BLACK][direction][i] = make([]TypeShape, size)
+			for j := 0; j < size; j++ {
+				shapeCache[CHESS_BLACK][direction][i][j] = Shapes.NONE
+				shapeCache[CHESS_WHITE][direction][i][j] = Shapes.NONE
 			}
 		}
 	}
 	// 缓存每个形状对应的点位
-	pointCache := make(TypePointCache)
-	for _, r := range []TypeChess{CHESS_BLACK, CHESS_WHITE} {
-		pointCache[r] = make(map[TypeShape]map[int]bool)
-		for _, shape := range ShapeFields {
-			pointCache[r][shape] = make(map[int]bool)
-		}
+	pointCache := make(TypePointCache, 2)
+	for _, shape := range ShapeFields {
+		pointCache[CHESS_WHITE][shape] = make(map[int]bool)
+		pointCache[CHESS_BLACK][shape] = make(map[int]bool)
 	}
 	return &Evaluate{
-		size:        size,
-		board:       board,
-		blackScores: blackScores,
-		whiteScores: whiteScores,
-		history:     make([]TypeHistory, 0),
-		shapeCache:  shapeCache,
-		pointCache:  pointCache,
+		size:       size,
+		board:      board,
+		scores:     scores,
+		history:    make([]TypeHistory, 0),
+		shapeCache: shapeCache,
+		pointCache: pointCache,
 	}
 }
 
-func (e *Evaluate) Move(point Point, role TypeChess) {
+func (e *Evaluate) opponent(chess TypeChess) TypeChess {
+	if chess == CHESS_BLACK {
+		return CHESS_WHITE
+	}
+	return CHESS_BLACK
+}
+
+func (e *Evaluate) Move(point Point, chess TypeChess) {
 	// 清空记录
 	x, y := point.x, point.y
 	for _, d := range DirectionEnum {
-		e.shapeCache[role][d][x][y] = Shapes.NONE
-		e.shapeCache[-role][d][x][y] = Shapes.NONE
+		e.shapeCache[chess][d][x][y] = Shapes.NONE
+		e.shapeCache[e.opponent(chess)][d][x][y] = Shapes.NONE
 	}
-	e.blackScores[x][y] = 0
-	e.whiteScores[x][y] = 0
+	e.scores[CHESS_BLACK][x][y] = 0
+	e.scores[CHESS_WHITE][x][y] = 0
 
 	// 更新分数
-	e.board[x+1][y+1] = role
+	e.board[x+1][y+1] = chess
 	e.updatePoint(x, y)
-	e.history = append(e.history, TypeHistory{point, role})
+	e.history = append(e.history, TypeHistory{point, chess})
 }
 
 func (e *Evaluate) Undo(point Point) {
@@ -317,24 +322,25 @@ func (e *Evaluate) getPoints(role TypeChess, depth int, vct, vcf bool) map[TypeS
 func (e *Evaluate) updatePoint(x, y int) {
 	// 更新当前点位的分数
 	start := time.Now()
-	e.updateSinglePoint(x, y, CHESS_BLACK, nil)
-	e.updateSinglePoint(x, y, CHESS_WHITE, nil)
+	e.updateSinglePoint(x, y, CHESS_BLACK)
+	e.updateSinglePoint(x, y, CHESS_WHITE)
 
-	for _, vec := range DirectionVec {
+	for _, dir := range DirectionEnum {
+		vec := DirectionVec[dir]
 		for _, sign := range []int{1, -1} { // -1 for negative direction, 1 for positive direction
 			for step := 1; step <= 5; step++ {
 				reachEdge := false
-				for _, role := range []TypeChess{CHESS_BLACK, CHESS_WHITE} {
+				for _, chess := range []TypeChess{CHESS_BLACK, CHESS_WHITE} {
 					nx, ny := x+sign*step*vec.x+1, y+sign*step*vec.y+1 // +1 to adjust for wall
 					if e.board[nx][ny] == CHESS_OBSTACLE {             // 到达边界停止
 						reachEdge = true
 						break
-					} else if e.board[nx][ny] == -role { // 达到对方棋子，则转换角色
+					} else if e.board[nx][ny] == e.toggleChess(chess) { // 达到对方棋子，则转换角色
 						continue
 					} else if e.board[nx][ny] == CHESS_EMPTY {
 						//[sign * ox, sign * oy]
 						// 这里不能跳过，可能会在悔棋时漏掉一些待更新的点位
-						e.updateSinglePoint(nx-1, ny-1, role, &Point{sign * vec.x, sign * vec.y}) // -1 to adjust back from wall
+						e.updateSinglePoint(nx-1, ny-1, chess, dir) // -1 to adjust back from wall
 					}
 				}
 				if reachEdge {
@@ -346,33 +352,34 @@ func (e *Evaluate) updatePoint(x, y int) {
 	performance.updateTime += time.Since(start)
 }
 
+func (e *Evaluate) toggleChess(chess TypeChess) TypeChess {
+	if chess == CHESS_BLACK {
+		return CHESS_WHITE
+	}
+	return CHESS_BLACK
+}
+
 /*
 计算单个点的得分
 计算原理是：
-在当前位置放一个当前角色的棋子，遍历四个方向，生成四个方向上的字符串，用patters来匹配字符串, 匹配到的话，就将对应的得分加到scores上
+遍历四个方向，生成四个方向上的字符串，用patters来匹配字符串, 匹配到的话，就将对应的得分加到scores上
 四个方向的字符串生成规则是：向两边都延伸5个位置，如果遇到边界或者对方的棋子，就停止延伸
 在更新周围棋子时，只有一个方向需要更新，因此可以传入direction参数，只更新一个方向
 */
-func (e *Evaluate) updateSinglePoint(x, y int, role TypeChess, direction *Point) int {
-	if e.board[x+1][y+1] != CHESS_EMPTY {
-		return 0 // Not an empty spot
-	}
-
-	// Temporarily place the piece
-	e.board[x+1][y+1] = role
-
-	var directions []Point
+func (e *Evaluate) updateSinglePoint(x, y int, chess TypeChess, direction ...TypeDirection) int {
+	// 遍历的方向：有则传入，没有则遍历所有方向
+	var directions []TypeDirection
 	if direction != nil {
-		directions = []Point{*direction}
+		directions = []TypeDirection{direction[0]}
 	} else {
-		directions = DirectionVec
+		directions = DirectionEnum
 	}
 
-	shapeCache := e.shapeCache[role]
-
+	// 只取当前角色的缓存
+	shapeCache := e.shapeCache[chess]
 	// Clear cache
-	for _, vec := range directions {
-		shapeCache[direction2index(vec)][x][y] = Shapes.NONE
+	for _, dir := range directions {
+		shapeCache[dir][x][y] = Shapes.NONE
 	}
 
 	score := 0
@@ -381,30 +388,33 @@ func (e *Evaluate) updateSinglePoint(x, y int, role TypeChess, direction *Point)
 	twoCount := 0
 
 	// Calculate existing scores
-	for _, intDirection := range []TypeDirection{HORIZONTAL, VERTICAL, DIAGONAL, ANTI_DIAGONAL} {
-		shape := shapeCache[intDirection][x][y]
+	for _, dir := range DirectionEnum {
+		shape := shapeCache[dir][x][y]
 		if shape > Shapes.NONE {
 			score += getRealShapeScore(shape)
 			if shape == Shapes.BLOCK_FOUR {
+				// 眠四计数
 				blockFourCount++
 			}
 			if shape == Shapes.THREE {
+				// 活三计数
 				threeCount++
 			}
 			if shape == Shapes.TWO {
+				// 活二计数
 				twoCount++
 			}
 		}
 	}
 
-	for _, vec := range directions {
-		intDirection := direction2index(vec)
-		shape, _ := GetShapeFast(e.board, x, y, vec.x, vec.y, role)
+	for _, dir := range directions {
+		vec := DirectionVec[dir]
+		shape, _ := GetShapeFast(e.board, x, y, vec.x, vec.y, chess)
 		if shape == Shapes.NONE {
 			continue
 		}
 		// Cache only single shapes, complex shapes like double three are not cached
-		shapeCache[intDirection][x][y] = shape
+		shapeCache[dir][x][y] = shape
 		if shape == Shapes.BLOCK_FOUR {
 			blockFourCount++
 		}
@@ -425,27 +435,18 @@ func (e *Evaluate) updateSinglePoint(x, y int, role TypeChess, direction *Point)
 		}
 		score += getRealShapeScore(shape)
 	}
-
-	// Remove the temporary piece
-	e.board[x+1][y+1] = CHESS_EMPTY
-
-	if role == CHESS_BLACK {
-		e.blackScores[x][y] = score
-	} else {
-		e.whiteScores[x][y] = score
-	}
-
+	e.scores[chess][x][y] = score
 	return score
 }
-func (e *Evaluate) Evaluate(role TypeChess) int {
+func (e *Evaluate) Evaluate(chess TypeChess) int {
 	blackScore, whiteScore := 0, 0
 	for i := 0; i < e.size; i++ {
 		for j := 0; j < e.size; j++ {
-			blackScore += e.blackScores[i][j]
-			whiteScore += e.whiteScores[i][j]
+			blackScore += e.scores[CHESS_BLACK][i][j]
+			whiteScore += e.scores[CHESS_WHITE][i][j]
 		}
 	}
-	if role == CHESS_BLACK {
+	if chess == CHESS_BLACK {
 		return blackScore - whiteScore
 	}
 	return whiteScore - blackScore
@@ -537,22 +538,4 @@ func mergeMaps(maps ...map[int]bool) map[int]bool {
 		}
 	}
 	return result
-}
-
-func (e *Evaluate) Display() {
-	result := ""
-	for i := 1; i < e.size+1; i++ {
-		for j := 1; j < e.size+1; j++ {
-			switch e.board[i][j] {
-			case CHESS_BLACK:
-				result += "O "
-			case CHESS_WHITE:
-				result += "X "
-			default:
-				result += "- "
-			}
-		}
-		result += "\n"
-	}
-	fmt.Println(result)
 }

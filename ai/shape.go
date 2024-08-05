@@ -6,7 +6,7 @@ type TypeChess int
 type TypeRole int
 type TypeShape int
 type TypeDirection int
-type TypeShapeCache map[TypeChess]map[TypeDirection]map[int]map[int]TypeShape
+type TypeShapeCache map[TypeChess]map[TypeDirection][][]TypeShape
 type TypePointCache map[TypeChess]map[TypeShape]map[int]bool
 
 type Point struct {
@@ -50,7 +50,7 @@ type ShapeEnum struct {
 	NONE        TypeShape
 }
 
-var DirectionVec = []Point{{0, 1}, {1, 0}, {1, 1}, {1, -1}}
+var DirectionVec = map[TypeDirection]Point{HORIZONTAL: {0, 1}, VERTICAL: {1, 0}, DIAGONAL: {1, 1}, ANTI_DIAGONAL: {1, -1}}
 var DirectionEnum = []TypeDirection{HORIZONTAL, VERTICAL, DIAGONAL, ANTI_DIAGONAL}
 var Shapes = &ShapeEnum{
 	FIVE:        5,
