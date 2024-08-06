@@ -105,6 +105,8 @@ func NewEvaluate(size int) *Evaluate {
 	}
 	// 缓存每个形状对应的点位
 	pointCache := make(TypePointCache, 2)
+	pointCache[CHESS_BLACK] = make(map[TypeShape]map[int]bool)
+	pointCache[CHESS_WHITE] = make(map[TypeShape]map[int]bool)
 	for _, shape := range ShapeFields {
 		pointCache[CHESS_WHITE][shape] = make(map[int]bool)
 		pointCache[CHESS_BLACK][shape] = make(map[int]bool)

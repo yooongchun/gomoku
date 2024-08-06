@@ -226,7 +226,12 @@ func (b *Board) GetBoardString(extraPoints []Point) string {
 	for _, point := range extraPoints {
 		extraPositions[Coordinate2Position(point.x, point.y, b.size)] = true
 	}
-
+	var lastOp TypeHistory
+	if len(b.history) > 0 {
+		lastOp = b.history[len(b.history)-1]
+	} else {
+		lastOp.point.x = -1
+	}
 	var result strings.Builder
 	prefix := "  "
 	result.WriteString(prefix + " ")
@@ -243,14 +248,26 @@ func (b *Board) GetBoardString(extraPoints []Point) string {
 				result.WriteString("?" + prefix)
 				continue
 			}
+
+			op := ""
 			switch b.board[i][j] {
 			case CHESS_BLACK:
-				result.WriteString("O" + prefix)
+				op = "O"
 			case CHESS_WHITE:
-				result.WriteString("X" + prefix)
+				op = "X"
 			default:
-				result.WriteString("-" + prefix)
+				op = "-"
 			}
+			if j == 0 && lastOp.point.y == 0 && lastOp.point.x == i {
+				op = "[" + op + "]"
+			} else if (j+1 == lastOp.point.y) && i == lastOp.point.x {
+				op = op + " ["
+			} else if j == lastOp.point.y && i == lastOp.point.x {
+				op = op + "] "
+			} else {
+				op = op + "  "
+			}
+			result.WriteString(op)
 		}
 		result.WriteString("\n") // New line at the end of each row
 	}

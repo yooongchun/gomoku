@@ -19,7 +19,7 @@ func TestGetShapeFast(t *testing.T) {
 	board[7][11] = ai.CHESS_BLACK
 
 	shape, _ := ai.GetShapeFast(board, 7, 7, 0, 1, ai.CHESS_BLACK)
-	if shape != ai.Shapes.LiveFive {
+	if shape != ai.Shapes.FIVE {
 		t.Errorf("Expected LiveFive, got %v", shape)
 	}
 
@@ -31,7 +31,7 @@ func TestGetShapeFast(t *testing.T) {
 	board[7][11] = ai.CHESS_BLACK
 
 	shape, _ = ai.GetShapeFast(board, 7, 7, 0, 1, ai.CHESS_BLACK)
-	if shape != ai.Shapes.BlockFour {
+	if shape != ai.Shapes.BLOCK_FOUR {
 		t.Errorf("Expected BlockFour, got %v", shape)
 	}
 }

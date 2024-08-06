@@ -1,6 +1,10 @@
 package ai
 
-import "reflect"
+import (
+	"reflect"
+	"strconv"
+	"strings"
+)
 
 type TypeChess int
 type TypeRole int
@@ -128,6 +132,45 @@ func countShape(board [][]TypeChess, x, y, offsetX, offsetY int, role TypeChess)
 		OneEmptySelfCount = 0
 	}
 	return selfCount, totalLength, noEmptySelfCount, OneEmptySelfCount, innerEmptyCount, sideEmptyCount
+}
+
+// GetShape 字符串匹配方式实现形状检测
+func GetShape(board [][]TypeChess, pos Point, dirVec Point, chess TypeChess) (shape TypeShape, selfCount int) {
+	left := strings.Builder{}
+	for i := 1; i < 5; i++ {
+		x, y := pos.x+i*dirVec.x, pos.y+i*dirVec.y
+		if x < 0 || y < 0 || x >= len(board) || y >= len(board[0]) {
+			break
+		}
+		if board[x][y] == chess {
+			selfCount++
+		}
+		left.WriteString(strconv.Itoa(int(board[x][y])))
+	}
+	right := strings.Builder{}
+	for i := 1; i < 5; i++ {
+		x, y := pos.x-i*dirVec.x, pos.y-i*dirVec.y
+		if x < 0 || y < 0 || x >= len(board) || y >= len(board[0]) {
+			break
+		}
+		if board[x][y] == chess {
+			selfCount++
+		}
+		right.WriteString(strconv.Itoa(int(board[x][y])))
+	}
+	if dirVec.x > 0 {
+		line := reverse(left.String()) + strconv.Itoa(int(board[pos.x][pos.y])) + right.String()
+	} else {
+
+	}
+}
+
+func reverse(s string) string {
+	runes := []rune(s)
+	for i, j := 0, len(runes)-1; i < j; i, j = i+1, j-1 {
+		runes[i], runes[j] = runes[j], runes[i]
+	}
+	return string(runes)
 }
 
 // GetShapeFast 使用遍历位置的方式实现的形状检测，速度较快，大约是字符串速度的2倍 但理解起来会稍微复杂一些

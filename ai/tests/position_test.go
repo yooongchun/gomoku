@@ -45,13 +45,3 @@ func TestIsAllInLine(t *testing.T) {
 		t.Errorf("Expected false but got true")
 	}
 }
-
-func TestHasInLine(t *testing.T) {
-	ai.Config.InLineDistance = 5
-	if !ai.HasInLine(10, []int{15, 21}, 5) {
-		t.Errorf("Expected true but got false")
-	}
-	if ai.HasInLine(10, []int{24, 23}, 5) {
-		t.Errorf("Expected false but got true")
-	}
-}

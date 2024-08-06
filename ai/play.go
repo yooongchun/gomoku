@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/sirupsen/logrus"
 	"math/rand"
+	"time"
 )
 
 type Play struct {
@@ -74,6 +75,7 @@ func (p *Play) getUserInput() Point {
 }
 
 func (p *Play) getAiMove() Point {
+	time.Sleep(2 * time.Second)
 	for {
 		x := rand.Intn(p.board.size)
 		y := rand.Intn(p.board.size)

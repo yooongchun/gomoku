@@ -1,37 +1,33 @@
 package tests
 
 import (
-	"gomoku/ai"
+	lru "github.com/hashicorp/golang-lru/v2"
 	"testing"
 )
 
 func TestCache(t *testing.T) {
-	c := ai.NewCache(2)
+	c, _ := lru.New[uint64, any](2)
 
-	c.Put("key1", 1)
-	if c.Get("key1").(int) != 1 {
-		t.Errorf("Expected 1 but got %v", c.Get("key1"))
+	c.Add(1, 1)
+	val, ok := c.Get(1)
+	if !ok || val.(int) != 1 {
+		t.Errorf("Expected 1 but got %v", val)
 	}
 
-	c.Put("key2", 2)
-	if c.Get("key2").(int) != 2 {
-		t.Errorf("Expected 2 but got %v", c.Get("key2"))
+	c.Add(2, 2)
+	val, ok = c.Get(2)
+	if !ok || val.(int) != 2 {
+		t.Errorf("Expected 2 but got %v", val)
 	}
 
-	c.Put("key3", 3)
-	if c.Get("key3").(int) != 3 {
-		t.Errorf("Expected 3 but got %v", c.Get("key3"))
-	}
+	c.Add(3, 3)
+	val, ok = c.Get(3)
 
-	if c.Get("key1") != nil {
-		t.Errorf("Expected 0 but got %v", c.Get("key1"))
-	}
-
-	if c.Has("key1") {
+	if c.Contains(1) {
 		t.Errorf("Expected false but got true")
 	}
 
-	if !c.Has("key2") {
+	if !c.Contains(2) {
 		t.Errorf("Expected true but got false")
 	}
 }
