@@ -1,86 +1,14 @@
 package ai
 
 import (
+	"github.com/duke-git/lancet/v2/strutil"
 	"reflect"
 	"strconv"
 	"strings"
 )
 
-type TypeChess int
-type TypeRole int
-type TypeShape int
-type TypeDirection int
-type TypeShapeCache map[TypeChess]map[TypeDirection][][]TypeShape
-type TypePointCache map[TypeChess]map[TypeShape]map[int]bool
-
-type Point struct {
-	x int
-	y int
-}
-
-type TypeHistory struct {
-	point Point
-	chess TypeChess
-}
-
-type TypeEvaluateCache struct {
-	chess TypeChess
-	score int
-}
-
-type TypeValuableMoveCache struct {
-	role      TypeChess
-	moves     []Point
-	depth     int
-	onlyThree bool
-	onlyFour  bool
-}
-
-// ShapeEnum 可取的形状
-type ShapeEnum struct {
-	FIVE        TypeShape //11111
-	FOUR        TypeShape //011110
-	FOUR_FOUR   TypeShape
-	FOUR_THREE  TypeShape
-	THREE_THREE TypeShape
-	BLOCK_FOUR  TypeShape //10111|11011|11101|211110|211101|211011|210111|011112|101112|110112|111012
-	THREE       TypeShape //011100|011010|010110|001110
-	BLOCK_THREE TypeShape //211100|211010|210110|001112|010112|011012
-	TWO_TWO     TypeShape
-	TWO         TypeShape //001100|011000|000110|010100|001010
-	BLOCK_TWO   TypeShape
-	ONE         TypeShape
-	BLOCK_ONE   TypeShape
-	NONE        TypeShape
-}
-
-var DirectionVec = map[TypeDirection]Point{HORIZONTAL: {0, 1}, VERTICAL: {1, 0}, DIAGONAL: {1, 1}, ANTI_DIAGONAL: {1, -1}}
-var DirectionEnum = []TypeDirection{HORIZONTAL, VERTICAL, DIAGONAL, ANTI_DIAGONAL}
-var Shapes = &ShapeEnum{
-	FIVE:        5,
-	FOUR:        4,
-	FOUR_FOUR:   44,
-	FOUR_THREE:  43,
-	THREE_THREE: 33,
-	BLOCK_FOUR:  40,
-	THREE:       3,
-	BLOCK_THREE: 30,
-	TWO_TWO:     22,
-	TWO:         2,
-	BLOCK_TWO:   20,
-	ONE:         1,
-	BLOCK_ONE:   10,
-	NONE:        0,
-}
-var ShapeFields []TypeShape
-
-func init() {
-	// 初始化 ShapeFields
-	ShapeFields = make([]TypeShape, 0)
-	v := reflect.ValueOf(*Shapes)
-	for i := 0; i < v.NumField(); i++ {
-		ShapeFields = append(ShapeFields, v.Field(i).Interface().(TypeShape))
-	}
+func NewPoint(x, y int) Point {
+	return Point{x, y}
 }
 
 // countShape function
@@ -134,58 +62,92 @@ func countShape(board [][]TypeChess, x, y, offsetX, offsetY int, role TypeChess)
 	return selfCount, totalLength, noEmptySelfCount, OneEmptySelfCount, innerEmptyCount, sideEmptyCount
 }
 
-// GetShape 字符串匹配方式实现形状检测
-func GetShape(board [][]TypeChess, pos Point, dirVec Point, chess TypeChess) (shape TypeShape, selfCount int) {
-	left := strings.Builder{}
-	for i := 1; i < 5; i++ {
-		x, y := pos.x+i*dirVec.x, pos.y+i*dirVec.y
-		if x < 0 || y < 0 || x >= len(board) || y >= len(board[0]) {
-			break
-		}
-		if board[x][y] == chess {
-			selfCount++
-		}
-		left.WriteString(strconv.Itoa(int(board[x][y])))
+func getShapeFields() []TypeShapeField {
+	allFields := make([]TypeShapeField, 0)
+	v := reflect.ValueOf(*ShapeEnum)
+	for i := 0; i < v.NumField(); i++ {
+		allFields = append(allFields, v.Field(i).Interface().(TypeShapeField))
 	}
-	right := strings.Builder{}
-	for i := 1; i < 5; i++ {
-		x, y := pos.x-i*dirVec.x, pos.y-i*dirVec.y
-		if x < 0 || y < 0 || x >= len(board) || y >= len(board[0]) {
-			break
-		}
-		if board[x][y] == chess {
-			selfCount++
-		}
-		right.WriteString(strconv.Itoa(int(board[x][y])))
-	}
-	if dirVec.x > 0 {
-		line := reverse(left.String()) + strconv.Itoa(int(board[pos.x][pos.y])) + right.String()
-	} else {
-
-	}
+	return allFields
 }
 
-func reverse(s string) string {
-	runes := []rune(s)
-	for i, j := 0, len(runes)-1; i < j; i, j = i+1, j-1 {
-		runes[i], runes[j] = runes[j], runes[i]
+func toggleChess(chess TypeChess) TypeChess {
+	if chess == CHESS_BLACK {
+		return CHESS_WHITE
 	}
-	return string(runes)
+	return CHESS_BLACK
+}
+
+func transBoardWithObstacle(board [][]TypeChess, chess TypeChess) [][]TypeChess {
+	newBoard := make([][]TypeChess, len(board))
+	for i := 0; i < len(board); i++ {
+		newBoard[i] = make([]TypeChess, len(board[i]))
+		for j := 0; j < len(board[i]); j++ {
+			newBoard[i][j] = board[i][j]
+			if board[i][j] == toggleChess(chess) {
+				newBoard[i][j] = CHESS_OBSTACLE
+			}
+		}
+	}
+	return newBoard
+}
+
+// GetShape 字符串匹配方式实现形状检测
+func GetShape(board [][]TypeChess, pos Point, dirVec Point, chess TypeChess) (shape TypeShapeField) {
+	// 将chess之外的棋子转换为OBSTACLE
+	board = transBoardWithObstacle(board, chess)
+	// 取出指定方向上的字符串，前后各延伸4个位置
+	line := []string{4: strconv.Itoa(int(chess)), 8: ""}
+	for i := 1; i < 5; i++ {
+		x, y := pos.x+i*dirVec.x, pos.y+i*dirVec.y
+		if isPosValid(board, x, y) {
+			line[4+i] = strconv.Itoa(int(board[x][y]))
+		}
+		x, y = pos.x-i*dirVec.x, pos.y-i*dirVec.y
+		if isPosValid(board, x, y) {
+			line[4-i] = strconv.Itoa(int(board[x][y]))
+		}
+	}
+	// 目标字符串
+	str := strings.Join(line, "")
+	// 遍历所有形状，查找匹配的形状
+	shape = ShapeEnum.None
+	for _, field := range getShapeFields() {
+		if field.Name == nil {
+			continue
+		}
+		for _, name := range field.Name {
+			if strings.Contains(str, name) {
+				shape = field
+				return
+			}
+			// 反转字符串再匹配一次
+			if strings.Contains(strutil.Reverse(str), name) {
+				shape = field
+				return
+			}
+		}
+	}
+	return
+}
+
+func isPosValid(board [][]TypeChess, x, y int) bool {
+	return x >= 0 && y >= 0 && x < len(board) && y < len(board[0])
 }
 
 // GetShapeFast 使用遍历位置的方式实现的形状检测，速度较快，大约是字符串速度的2倍 但理解起来会稍微复杂一些
-func GetShapeFast(board [][]TypeChess, x, y, offsetX, offsetY int, role TypeChess) (TypeShape, int) {
+func GetShapeFast(board [][]TypeChess, x, y, offsetX, offsetY int, role TypeChess) (TypeShapeField, int) {
 	// 有一点点优化效果：跳过为空的节点（左右两边空位为2）
 	if board[x+offsetX][y+offsetY] == 0 &&
 		board[x-offsetX][y-offsetY] == 0 &&
 		board[x+2*offsetX][y+2*offsetY] == 0 &&
 		board[x-2*offsetX][y-2*offsetY] == 0 {
-		return Shapes.NONE, 1
+		return ShapeEnum.None, 1
 	}
 
 	selfCount := 1
 	totalLength := 1
-	shape := Shapes.NONE
+	shape := ShapeEnum.None
 
 	leftEmpty := 0
 	rightEmpty := 0
@@ -206,60 +168,60 @@ func GetShapeFast(board [][]TypeChess, x, y, offsetX, offsetY int, role TypeChes
 		return shape, selfCount
 	}
 	if noEmptySelfCount >= 5 {
-		return Shapes.FIVE, selfCount
+		return ShapeEnum.Five, selfCount
 	}
 	if noEmptySelfCount == 4 {
 		if (rightEmpty >= 1 || rOneEmptySelfCount > rNoEmptySelfCount) && (leftEmpty >= 1 || lOneEmptySelfCount > lNoEmptySelfCount) {
-			return Shapes.FOUR, selfCount
+			return ShapeEnum.Four, selfCount
 		} else if !(rightEmpty == 0 && leftEmpty == 0) {
-			return Shapes.BLOCK_FOUR, selfCount
+			return ShapeEnum.BlockFour, selfCount
 		}
 	}
 	if OneEmptySelfCount == 4 {
-		return Shapes.BLOCK_FOUR, selfCount
+		return ShapeEnum.BlockFour, selfCount
 	}
 	if noEmptySelfCount == 3 {
 		if (rightEmpty >= 2 && leftEmpty >= 1) || (rightEmpty >= 1 && leftEmpty >= 2) {
-			return Shapes.THREE, selfCount
+			return ShapeEnum.Three, selfCount
 		} else {
-			return Shapes.BLOCK_THREE, selfCount
+			return ShapeEnum.BlockThree, selfCount
 		}
 	}
 	if OneEmptySelfCount == 3 {
 		if rightEmpty >= 1 && leftEmpty >= 1 {
-			return Shapes.THREE, selfCount
+			return ShapeEnum.Three, selfCount
 		} else {
-			return Shapes.BLOCK_THREE, selfCount
+			return ShapeEnum.BlockThree, selfCount
 		}
 	}
 	if (noEmptySelfCount == 2 || OneEmptySelfCount == 2) && totalLength > 5 {
-		shape = Shapes.TWO
+		shape = ShapeEnum.Two
 	}
 
 	return shape, selfCount
 }
 
 // IsFive function
-func IsFive(shape TypeShape) bool {
-	return shape == Shapes.FIVE
+func IsFive(shape TypeShapeField) bool {
+	return shape.Code == ShapeEnum.Five.Code
 }
 
 // IsFour function
-func IsFour(shape TypeShape) bool {
-	return shape == Shapes.FOUR || shape == Shapes.BLOCK_FOUR
+func IsFour(shape TypeShapeField) bool {
+	return shape.Code == ShapeEnum.Four.Code || shape.Code == ShapeEnum.BlockFour.Code
 }
 
 // GetAllShapesOfPoint function
-func GetAllShapesOfPoint(shapeCache TypeShapeCache, x, y int, chess TypeChess) []TypeShape {
-	chesses := []TypeChess{chess}
+func GetAllShapesOfPoint(shapeCache TypeShapeCache, x, y int, chess TypeChess) []TypeShapeField {
+	chessList := []TypeChess{chess}
 	if chess == CHESS_EMPTY {
-		chesses = []TypeChess{CHESS_BLACK, CHESS_WHITE}
+		chessList = []TypeChess{CHESS_BLACK, CHESS_WHITE}
 	}
-	var result []TypeShape
-	for _, r := range chesses {
-		for _, d := range []TypeDirection{HORIZONTAL, VERTICAL, DIAGONAL, ANTI_DIAGONAL} {
-			shape := shapeCache[r][d][x][y]
-			if shape != Shapes.NONE {
+	var result []TypeShapeField
+	for _, c := range chessList {
+		for _, d := range DirectionEnum {
+			shape := shapeCache[c][d][x][y]
+			if shape.Code != ShapeEnum.None.Code {
 				result = append(result, shape)
 			}
 		}

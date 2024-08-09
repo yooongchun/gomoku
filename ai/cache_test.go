@@ -1,4 +1,4 @@
-package tests
+package ai
 
 import (
 	lru "github.com/hashicorp/golang-lru/v2"

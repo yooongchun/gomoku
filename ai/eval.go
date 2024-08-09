@@ -1,55 +1,9 @@
 package ai
 
 import (
+	"fmt"
 	"time"
 )
-
-// 形状转换分数，注意这里的分数是当前位置还没有落子的分数
-func getRealShapeScore(shape TypeShape) int {
-	switch shape {
-	case Shapes.FIVE:
-		return SCORE_FIVE
-	case Shapes.FOUR:
-		return SCORE_FOUR
-	case Shapes.FOUR_FOUR:
-		return SCORE_FOUR_FOUR
-	case Shapes.FOUR_THREE:
-		return SCORE_FOUR_THREE
-	case Shapes.THREE_THREE:
-		return SCORE_THREE_THREE
-	case Shapes.BLOCK_FOUR:
-		return SCORE_BLOCK_FOUR
-	case Shapes.THREE:
-		return SCORE_THREE
-	case Shapes.BLOCK_THREE:
-		return SCORE_BLOCK_THREE
-	case Shapes.TWO_TWO:
-		return SCORE_TWO_TWO
-	case Shapes.TWO:
-		return SCORE_TWO
-	case Shapes.BLOCK_TWO:
-		return SCORE_BLOCK_TWO
-	case Shapes.ONE:
-		return SCORE_ONE
-	case Shapes.BLOCK_ONE:
-		return SCORE_BLOCK_ONE
-	default:
-		return SCORE_NONE
-	}
-}
-
-func direction2index(point Point) TypeDirection {
-	if point.x == 0 { // |
-		return VERTICAL
-	}
-	if point.y == 0 { // -
-		return HORIZONTAL
-	}
-	if point.x == point.y { // \
-		return DIAGONAL
-	}
-	return ANTI_DIAGONAL // /
-}
 
 type PerformanceEnum struct {
 	updateTime    time.Duration
@@ -64,10 +18,10 @@ var performance = &PerformanceEnum{
 type Evaluate struct {
 	size       int
 	board      [][]TypeChess
-	scores     map[TypeChess][][]int
-	history    []TypeHistory  // 记录历史 [position, role]
-	shapeCache TypeShapeCache // 缓存每个点位的分数，避免重复计算
-	pointCache TypePointCache // 缓存每个形状对应的点位
+	scores     map[TypeChess][][]int // [chess][x][y]->score
+	history    []TypeHistory         // 记录历史 [position, role]
+	scoreCache TypeScoreCache        // 缓存每个点位的分数，避免重复计算
+	shapeCache TypeShapeCache        // 缓存每个形状对应的点位
 }
 
 func NewEvaluate(size int) *Evaluate {
@@ -83,41 +37,45 @@ func NewEvaluate(size int) *Evaluate {
 	}
 	// 黑白双方的得分
 	scores := make(map[TypeChess][][]int, 2)
-	for i := 0; i < size; i++ {
-		scores[CHESS_BLACK] = make([][]int, size)
-		scores[CHESS_WHITE] = make([][]int, size)
+	for _, chess := range []TypeChess{CHESS_BLACK, CHESS_WHITE} {
+		scores[chess] = make([][]int, size)
+		for i := 0; i < size; i++ {
+			scores[chess][i] = make([]int, size)
+		}
 	}
 	// 缓存每个点位的形状，避免重复计算
 	shapeCache := make(TypeShapeCache, 2)
-	shapeCache[CHESS_BLACK] = make(map[TypeDirection][][]TypeShape, 4)
-	shapeCache[CHESS_WHITE] = make(map[TypeDirection][][]TypeShape, 4)
-	for _, direction := range DirectionEnum {
-		shapeCache[CHESS_BLACK][direction] = make([][]TypeShape, size)
-		shapeCache[CHESS_WHITE][direction] = make([][]TypeShape, size)
-		for i := 0; i < size; i++ {
-			shapeCache[CHESS_WHITE][direction][i] = make([]TypeShape, size)
-			shapeCache[CHESS_BLACK][direction][i] = make([]TypeShape, size)
-			for j := 0; j < size; j++ {
-				shapeCache[CHESS_BLACK][direction][i][j] = Shapes.NONE
-				shapeCache[CHESS_WHITE][direction][i][j] = Shapes.NONE
+	numDirection := len(DirectionEnum)
+	for _, chess := range []TypeChess{CHESS_BLACK, CHESS_WHITE} {
+		shapeCache[chess] = make(map[TypeDirection][][]TypeShapeField, numDirection)
+		for _, direction := range DirectionEnum {
+			shapeCache[chess][direction] = make([][]TypeShapeField, size)
+			for i := 0; i < size; i++ {
+				shapeCache[chess][direction][i] = make([]TypeShapeField, size)
+				for j := 0; j < size; j++ {
+					shapeCache[chess][direction][i][j] = ShapeEnum.None
+				}
 			}
 		}
 	}
-	// 缓存每个形状对应的点位
-	pointCache := make(TypePointCache, 2)
-	pointCache[CHESS_BLACK] = make(map[TypeShape]map[int]bool)
-	pointCache[CHESS_WHITE] = make(map[TypeShape]map[int]bool)
-	for _, shape := range ShapeFields {
-		pointCache[CHESS_WHITE][shape] = make(map[int]bool)
-		pointCache[CHESS_BLACK][shape] = make(map[int]bool)
+	// 缓存score
+	scoreCache := make(TypeScoreCache, 2)
+	for _, chess := range []TypeChess{CHESS_BLACK, CHESS_WHITE} {
+		scoreCache[chess] = make(map[TypeDirection][][]int, numDirection)
+		for _, direction := range DirectionEnum {
+			scoreCache[chess][direction] = make([][]int, size)
+			for i := 0; i < size; i++ {
+				scoreCache[chess][direction][i] = make([]int, size)
+			}
+		}
 	}
 	return &Evaluate{
 		size:       size,
 		board:      board,
 		scores:     scores,
 		history:    make([]TypeHistory, 0),
+		scoreCache: scoreCache,
 		shapeCache: shapeCache,
-		pointCache: pointCache,
 	}
 }
 
@@ -132,11 +90,11 @@ func (e *Evaluate) Move(point Point, chess TypeChess) {
 	// 清空记录
 	x, y := point.x, point.y
 	for _, d := range DirectionEnum {
-		e.shapeCache[chess][d][x][y] = Shapes.NONE
-		e.shapeCache[e.opponent(chess)][d][x][y] = Shapes.NONE
+		e.scoreCache[chess][d][x][y] = SCORE_NONE
+		e.scoreCache[e.opponent(chess)][d][x][y] = SCORE_NONE
 	}
-	e.scores[CHESS_BLACK][x][y] = 0
-	e.scores[CHESS_WHITE][x][y] = 0
+	e.scores[CHESS_BLACK][x][y] = SCORE_NONE
+	e.scores[CHESS_WHITE][x][y] = SCORE_NONE
 
 	// 更新分数
 	e.board[x+1][y+1] = chess
@@ -155,18 +113,19 @@ func (e *Evaluate) Undo(point Point) {
 // 这么做有一点问题：
 // 1. 因为己方可能会由于防守暂时离开原来的线，这样就会导致己方被中断，只能增加最后几步的长度，比如不是取最后一步，而是最后3步
 // 2. 如果不是取最后1步，取的步数太多了，反而还不如直接返回所有点位。
-func (e *Evaluate) getPointInLine() map[TypeShape]map[int]bool {
-	pointsInLine := make(map[TypeShape]map[int]bool)
+func (e *Evaluate) getPointInLine() map[int]map[int]bool {
+	pointsInLine := make(map[int]map[int]bool)
 	hasPointInLine := false
-	for _, shape := range ShapeFields {
-		pointsInLine[shape] = make(map[int]bool)
+	for _, shape := range getShapeFields() {
+		pointsInLine[shape.Code] = make(map[int]bool)
 	}
 	last2History := e.history[len(e.history)-Config.InlineCount:]
 	processed := make(map[int]TypeChess) // 已经处理过的点位
 	// 在last2Points中查找是否有点位在一条线上
-	for _, r := range []TypeChess{CHESS_BLACK, CHESS_WHITE} {
+	for _, chess := range []TypeChess{CHESS_BLACK, CHESS_WHITE} {
 		for _, his := range last2History {
-			for _, vec := range DirectionVec {
+			for _, dire := range DirectionEnum {
+				vec := DirectionVec[dire]
 				for _, sign := range []int{1, -1} {
 					for step := 1; step <= Config.InLineDistance; step++ {
 						nx, ny := his.point.x+sign*step*vec.x, his.point.y+sign*step*vec.y
@@ -178,14 +137,14 @@ func (e *Evaluate) getPointInLine() map[TypeShape]map[int]bool {
 						if e.board[nx+1][ny+1] != CHESS_EMPTY {
 							continue
 						}
-						if processed[position] == r {
+						if processed[position] == chess {
 							continue
 						}
-						processed[position] = r
-						for _, direction := range DirectionVec {
-							shape := e.shapeCache[r][direction2index(direction)][nx][ny]
-							if shape != Shapes.NONE {
-								pointsInLine[shape][position] = true
+						processed[position] = chess
+						for _, d := range DirectionEnum {
+							shape := e.shapeCache[chess][d][nx][ny]
+							if shape.Code != ShapeEnum.None.Code {
+								pointsInLine[shape.Code][position] = true
 								hasPointInLine = true
 							}
 						}
@@ -200,7 +159,7 @@ func (e *Evaluate) getPointInLine() map[TypeShape]map[int]bool {
 	return nil
 }
 
-func (e *Evaluate) getPoints(role TypeChess, depth int, vct, vcf bool) map[TypeShape]map[int]bool {
+func (e *Evaluate) getPoints(role TypeChess, depth int, vct, vcf bool) map[int]map[int]bool {
 	var first TypeChess
 	if depth%2 == 0 {
 		first = role
@@ -216,9 +175,9 @@ func (e *Evaluate) getPoints(role TypeChess, depth int, vct, vcf bool) map[TypeS
 		}
 	}
 
-	points := make(map[TypeShape]map[int]bool)
-	for _, shape := range ShapeFields {
-		points[shape] = make(map[int]bool)
+	points := make(map[int]map[int]bool)
+	for _, shape := range getShapeFields() {
+		points[shape.Code] = make(map[int]bool)
 	}
 	lastPoints := e.history[len(e.history)-4:]
 	for _, r := range []TypeChess{CHESS_BLACK, CHESS_WHITE} {
@@ -230,7 +189,7 @@ func (e *Evaluate) getPoints(role TypeChess, depth int, vct, vcf bool) map[TypeS
 						continue
 					}
 					shape := e.shapeCache[r][direction][i][j]
-					if shape == Shapes.NONE {
+					if shape.Code != ShapeEnum.None.Code {
 						continue
 					}
 					if vcf {
@@ -247,35 +206,35 @@ func (e *Evaluate) getPoints(role TypeChess, depth int, vct, vcf bool) map[TypeS
 							if depth == 0 && r != first {
 								continue
 							}
-							if shape != Shapes.THREE && !IsFour(shape) && !IsFive(shape) {
+							if shape.Code != ShapeEnum.Three.Code && !IsFour(shape) && !IsFive(shape) {
 								continue
 							}
-							if shape == Shapes.THREE && r != first {
+							if shape.Code == ShapeEnum.Three.Code && r != first {
 								continue
 							}
 							if depth == 0 && r != first {
 								continue
 							}
 							if depth > 0 {
-								if shape == Shapes.THREE && len(GetAllShapesOfPoint(e.shapeCache, i, j, r)) == 1 {
+								if shape.Code == ShapeEnum.Three.Code && len(GetAllShapesOfPoint(e.shapeCache, i, j, r)) == 1 {
 									continue
 								}
-								if shape == Shapes.BLOCK_FOUR && len(GetAllShapesOfPoint(e.shapeCache, i, j, r)) == 1 {
+								if shape.Code == ShapeEnum.BlockFour.Code && len(GetAllShapesOfPoint(e.shapeCache, i, j, r)) == 1 {
 									continue
 								}
 							}
 						} else {
-							if shape != Shapes.THREE && !IsFour(shape) && !IsFive(shape) {
+							if shape.Code != ShapeEnum.Three.Code && !IsFour(shape) && !IsFive(shape) {
 								continue
 							}
-							if shape == Shapes.THREE && r == -first {
+							if shape.Code == ShapeEnum.Three.Code && r == -first {
 								continue
 							}
 							if depth > 1 {
-								if shape == Shapes.BLOCK_FOUR && len(GetAllShapesOfPoint(e.shapeCache, i, j, CHESS_EMPTY)) == 1 {
+								if shape.Code == ShapeEnum.BlockFour.Code && len(GetAllShapesOfPoint(e.shapeCache, i, j, CHESS_EMPTY)) == 1 {
 									continue
 								}
-								if shape == Shapes.BLOCK_FOUR && !HasInLine(point, lastPoints, e.size) {
+								if shape.Code == ShapeEnum.BlockFour.Code && !HasInLine(point, lastPoints, e.size) {
 									continue
 								}
 							}
@@ -286,27 +245,27 @@ func (e *Evaluate) getPoints(role TypeChess, depth int, vct, vcf bool) map[TypeS
 							continue
 						}
 					}
-					if depth > 2 && (shape == Shapes.TWO || shape == Shapes.TWO_TWO || shape == Shapes.BLOCK_THREE) && !HasInLine(point, lastPoints, e.size) {
+					if depth > 2 && (shape.Code == ShapeEnum.Two.Code || shape.Code == ShapeEnum.DoubleTwo.Code || shape.Code == ShapeEnum.DoubleThree.Code) && !HasInLine(point, lastPoints, e.size) {
 						continue
 					}
-					points[shape][point] = true
-					if shape == Shapes.FOUR {
+					points[shape.Code][point] = true
+					if shape.Code == ShapeEnum.Four.Code {
 						fourCount++
-					} else if shape == Shapes.BLOCK_FOUR {
+					} else if shape.Code == ShapeEnum.BlockFour.Code {
 						blockFourCount++
-					} else if shape == Shapes.THREE {
+					} else if shape.Code == ShapeEnum.Three.Code {
 						threeCount++
 					}
-					var unionShape TypeShape
+					var unionShape TypeShapeField
 					if fourCount >= 2 {
-						unionShape = Shapes.FOUR_FOUR
+						unionShape = ShapeEnum.DoubleFour
 					} else if blockFourCount > 0 && threeCount > 0 {
-						unionShape = Shapes.FOUR_THREE
+						unionShape = ShapeEnum.FourThree
 					} else if threeCount >= 2 {
-						unionShape = Shapes.THREE_THREE
+						unionShape = ShapeEnum.DoubleThree
 					}
-					if unionShape != Shapes.NONE {
-						points[unionShape][point] = true
+					if unionShape.Code != ShapeEnum.None.Code {
+						points[unionShape.Code][point] = true
 					}
 				}
 			}
@@ -337,7 +296,7 @@ func (e *Evaluate) updatePoint(x, y int) {
 					if e.board[nx][ny] == CHESS_OBSTACLE {             // 到达边界停止
 						reachEdge = true
 						break
-					} else if e.board[nx][ny] == e.toggleChess(chess) { // 达到对方棋子，则转换角色
+					} else if e.board[nx][ny] == toggleChess(chess) { // 达到对方棋子，则转换角色
 						continue
 					} else if e.board[nx][ny] == CHESS_EMPTY {
 						//[sign * ox, sign * oy]
@@ -352,13 +311,6 @@ func (e *Evaluate) updatePoint(x, y int) {
 		}
 	}
 	performance.updateTime += time.Since(start)
-}
-
-func (e *Evaluate) toggleChess(chess TypeChess) TypeChess {
-	if chess == CHESS_BLACK {
-		return CHESS_WHITE
-	}
-	return CHESS_BLACK
 }
 
 /*
@@ -381,7 +333,7 @@ func (e *Evaluate) updateSinglePoint(x, y int, chess TypeChess, direction ...Typ
 	shapeCache := e.shapeCache[chess]
 	// Clear cache
 	for _, dir := range directions {
-		shapeCache[dir][x][y] = Shapes.NONE
+		shapeCache[dir][x][y] = ShapeEnum.None
 	}
 
 	score := 0
@@ -392,54 +344,49 @@ func (e *Evaluate) updateSinglePoint(x, y int, chess TypeChess, direction ...Typ
 	// Calculate existing scores
 	for _, dir := range DirectionEnum {
 		shape := shapeCache[dir][x][y]
-		if shape > Shapes.NONE {
-			score += getRealShapeScore(shape)
-			if shape == Shapes.BLOCK_FOUR {
-				// 眠四计数
-				blockFourCount++
-			}
-			if shape == Shapes.THREE {
-				// 活三计数
-				threeCount++
-			}
-			if shape == Shapes.TWO {
-				// 活二计数
-				twoCount++
-			}
+		score += shape.Score
+		switch shape.Code {
+		case ShapeEnum.BlockFour.Code:
+			blockFourCount++
+		case ShapeEnum.Three.Code:
+			threeCount++
+		case ShapeEnum.Two.Code:
+			twoCount++
 		}
 	}
 
 	for _, dir := range directions {
 		vec := DirectionVec[dir]
-		shape, _ := GetShapeFast(e.board, x, y, vec.x, vec.y, chess)
-		if shape == Shapes.NONE {
+		shape := GetShape(e.board, Point{x + 1, y + 1}, vec, chess)
+		fmt.Printf("direction=%v, shape=%v", dir, shape)
+		if shape.Code == ShapeEnum.None.Code {
 			continue
 		}
-		// Cache only single shapes, complex shapes like double three are not cached
+		// Cache only single shapes, complex shapes like double Three are not cached
 		shapeCache[dir][x][y] = shape
-		if shape == Shapes.BLOCK_FOUR {
+		switch shape.Code {
+		case ShapeEnum.BlockFour.Code:
 			blockFourCount++
-		}
-		if shape == Shapes.THREE {
+		case ShapeEnum.Three.Code:
 			threeCount++
-		}
-		if shape == Shapes.TWO {
+		case ShapeEnum.Two.Code:
 			twoCount++
 		}
 		if blockFourCount >= 2 {
-			shape = Shapes.FOUR_FOUR
+			shape = ShapeEnum.DoubleFour
 		} else if blockFourCount > 0 && threeCount > 0 {
-			shape = Shapes.FOUR_THREE
+			shape = ShapeEnum.FourThree
 		} else if threeCount >= 2 {
-			shape = Shapes.THREE_THREE
+			shape = ShapeEnum.DoubleThree
 		} else if twoCount >= 2 {
-			shape = Shapes.TWO_TWO
+			shape = ShapeEnum.DoubleTwo
 		}
-		score += getRealShapeScore(shape)
+		score += shape.Score
 	}
 	e.scores[chess][x][y] = score
 	return score
 }
+
 func (e *Evaluate) Evaluate(chess TypeChess) int {
 	blackScore, whiteScore := 0, 0
 	for i := 0; i < e.size; i++ {
@@ -471,43 +418,43 @@ func (e *Evaluate) getValuableMoves(role TypeChess, depth int, onlyThree, onlyFo
 }
 func (e *Evaluate) getMoves(role TypeChess, depth int, onlyThree bool, onlyFour bool) map[int]bool {
 	points := e.getPoints(role, depth, onlyThree, onlyFour)
-	fives, ok := points[Shapes.FIVE]
+	fives, ok := points[ShapeEnum.Five.Code]
 	if !ok {
 		fives = make(map[int]bool)
 	}
 	if len(fives) > 0 {
 		return fives
 	}
-	fours, ok := points[Shapes.FOUR]
+	fours, ok := points[ShapeEnum.Four.Code]
 	if !ok {
 		fours = make(map[int]bool)
 	}
-	blockFours, ok := points[Shapes.BLOCK_FOUR]
+	blockFours, ok := points[ShapeEnum.BlockFour.Code]
 	if !ok {
 		blockFours = make(map[int]bool)
 	}
 	if onlyFour || len(fours) > 0 {
 		return mergeMaps(fours, blockFours)
 	}
-	fourFours, ok := points[Shapes.FOUR_FOUR]
+	fourFours, ok := points[ShapeEnum.DoubleFour.Code]
 	if !ok {
 		fourFours = make(map[int]bool)
 	}
 	if len(fourFours) > 0 {
 		return mergeMaps(fourFours, blockFours)
 	}
-	threes, ok := points[Shapes.THREE]
+	threes, ok := points[ShapeEnum.Three.Code]
 	if !ok {
 		threes = make(map[int]bool)
 	}
-	fourThrees, ok := points[Shapes.FOUR_THREE]
+	fourThrees, ok := points[ShapeEnum.FourThree.Code]
 	if !ok {
 		fourThrees = make(map[int]bool)
 	}
 	if len(fourThrees) > 0 {
 		return mergeMaps(fourThrees, blockFours, threes)
 	}
-	threeThrees, ok := points[Shapes.THREE_THREE]
+	threeThrees, ok := points[ShapeEnum.DoubleThree.Code]
 	if !ok {
 		threeThrees = make(map[int]bool)
 	}
@@ -517,15 +464,15 @@ func (e *Evaluate) getMoves(role TypeChess, depth int, onlyThree bool, onlyFour 
 	if onlyThree {
 		return mergeMaps(blockFours, threes)
 	}
-	blockThrees, ok := points[Shapes.BLOCK_THREE]
+	blockThrees, ok := points[ShapeEnum.DoubleThree.Code]
 	if !ok {
 		blockThrees = make(map[int]bool)
 	}
-	twoTwos, ok := points[Shapes.TWO_TWO]
+	twoTwos, ok := points[ShapeEnum.DoubleTwo.Code]
 	if !ok {
 		twoTwos = make(map[int]bool)
 	}
-	twos, ok := points[Shapes.TWO]
+	twos, ok := points[ShapeEnum.Two.Code]
 	if !ok {
 		twos = make(map[int]bool)
 	}

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/hashicorp/golang-lru/v2"
 	"github.com/sirupsen/logrus"
-	"strings"
 	"time"
 )
 
@@ -150,19 +149,15 @@ func (b *Board) GetValidMoves() []Point {
 }
 
 func (b *Board) togglePiece() {
-	if b.current == CHESS_BLACK {
-		b.current = CHESS_WHITE
-	} else {
-		b.current = CHESS_BLACK
-	}
+	b.current = togglePiece(b.current)
 }
 func (b *Board) Move(point Point) {
 	if point.x < 0 || point.x >= b.size || point.y < 0 || point.y >= b.size {
-		logrus.Error("Invalid move: out of board! %v", point)
+		logrus.Errorf("Invalid move: out of board! %v", point)
 		return
 	}
 	if b.board[point.x][point.y] != CHESS_EMPTY {
-		logrus.Error("Invalid move: position not empty! %v", point)
+		logrus.Errorf("Invalid move: position not empty! %v", point)
 		return
 	}
 	b.board[point.x][point.y] = b.current
@@ -218,61 +213,9 @@ func (b *Board) GetValuableMoves(role TypeChess, depth int, onlyThree, onlyFour 
 }
 
 func (b *Board) Display(extraPoints []Point) {
-	fmt.Println(b.GetBoardString(extraPoints))
+	fmt.Println(getBoardString(b.board, nil, extraPoints))
 }
 
-func (b *Board) GetBoardString(extraPoints []Point) string {
-	extraPositions := make(map[int]bool, len(extraPoints))
-	for _, point := range extraPoints {
-		extraPositions[Coordinate2Position(point.x, point.y, b.size)] = true
-	}
-	var lastOp TypeHistory
-	if len(b.history) > 0 {
-		lastOp = b.history[len(b.history)-1]
-	} else {
-		lastOp.point.x = -1
-	}
-	var result strings.Builder
-	prefix := "  "
-	result.WriteString(prefix + " ")
-	for i := 0; i < b.size; i++ {
-		result.WriteString(fmt.Sprintf("%X", i) + prefix)
-	}
-	result.WriteString("\n")
-
-	for i := 0; i < b.size; i++ {
-		result.WriteString(fmt.Sprintf("%X", i) + prefix)
-		for j := 0; j < b.size; j++ {
-			position := Coordinate2Position(i, j, b.size)
-			if ok, exist := extraPositions[position]; ok && exist {
-				result.WriteString("?" + prefix)
-				continue
-			}
-
-			op := ""
-			switch b.board[i][j] {
-			case CHESS_BLACK:
-				op = "O"
-			case CHESS_WHITE:
-				op = "X"
-			default:
-				op = "-"
-			}
-			if j == 0 && lastOp.point.y == 0 && lastOp.point.x == i {
-				op = "[" + op + "]"
-			} else if (j+1 == lastOp.point.y) && i == lastOp.point.x {
-				op = op + " ["
-			} else if j == lastOp.point.y && i == lastOp.point.x {
-				op = op + "] "
-			} else {
-				op = op + "  "
-			}
-			result.WriteString(op)
-		}
-		result.WriteString("\n") // New line at the end of each row
-	}
-	return result.String()
-}
 func (b *Board) Evaluate(chess TypeChess) int {
 	hash := b.zobrist.GetHash()
 

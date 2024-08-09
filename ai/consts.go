@@ -3,7 +3,8 @@ package ai
 import "math"
 
 const (
-	SCORE_FIVE        = math.MaxInt64
+	SCORE_MAX         = math.MaxInt
+	SCORE_FIVE        = 10000000
 	SCORE_FOUR        = 1000000
 	SCORE_FOUR_FOUR   = 1000000
 	SCORE_FOUR_THREE  = 1000000
@@ -14,29 +15,20 @@ const (
 	SCORE_TWO_TWO     = 200
 	SCORE_TWO         = 100
 	SCORE_BLOCK_TWO   = 15
-	SCORE_ONE         = 10
-	SCORE_BLOCK_ONE   = 1
 	SCORE_NONE        = 0
 )
 
 const (
 	IIIII  = "11111"
 	OIIIIO = "011110"
-	IOIII  = "10111"
 	IIOII  = "11011"
 	IIIOI  = "11101"
 	ZIIIIO = "211110"
 	ZIIIOI = "211101"
 	ZIIOII = "211011"
 	ZIOIII = "210111"
-	OIIII2 = "011112"
-	IOIII2 = "101112"
-	IIOII2 = "110112"
-	IIIOI2 = "111012"
 	OIIIOO = "011100"
 	OIIOIO = "011010"
-	OIOIIO = "010110"
-	OOIIIO = "001110"
 	ZIIIOO = "211100"
 	ZIIOIO = "211010"
 	ZIOIIO = "210110"
@@ -51,16 +43,16 @@ const (
 )
 
 const (
+	CHESS_EMPTY    = 0
 	CHESS_BLACK    = 1
 	CHESS_WHITE    = -1
-	CHESS_EMPTY    = 0
 	CHESS_OBSTACLE = 2
 )
 
 const (
-	ROLE_HUMAN = 1
-	ROLE_AI    = 2
-	NOBODY     = 0
+	NOBODY = iota
+	ROLE_HUMAN
+	ROLE_AI
 )
 
 const (
