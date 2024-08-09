@@ -42,7 +42,7 @@ type TypeShapeAll struct {
 	DoubleFour  TypeShapeField
 	FourThree   TypeShapeField
 	DoubleThree TypeShapeField
-	BlockFour   TypeShapeField //10111|11011|11101|211110|211101|211011|210111|011112|101112|110112|111012
+	RushFour    TypeShapeField //10111|11011|11101|211110|211101|211011|210111|011112|101112|110112|111012
 	Three       TypeShapeField //011100|011010|010110|001110
 	BlockThree  TypeShapeField //211100|211010|210110|001112|010112|011012
 	DoubleTwo   TypeShapeField

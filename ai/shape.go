@@ -3,7 +3,6 @@ package ai
 import (
 	"github.com/duke-git/lancet/v2/strutil"
 	"reflect"
-	"strconv"
 	"strings"
 )
 
@@ -71,20 +70,13 @@ func getShapeFields() []TypeShapeField {
 	return allFields
 }
 
-func toggleChess(chess TypeChess) TypeChess {
-	if chess == CHESS_BLACK {
-		return CHESS_WHITE
-	}
-	return CHESS_BLACK
-}
-
 func transBoardWithObstacle(board [][]TypeChess, chess TypeChess) [][]TypeChess {
 	newBoard := make([][]TypeChess, len(board))
 	for i := 0; i < len(board); i++ {
 		newBoard[i] = make([]TypeChess, len(board[i]))
 		for j := 0; j < len(board[i]); j++ {
 			newBoard[i][j] = board[i][j]
-			if board[i][j] == toggleChess(chess) {
+			if board[i][j] == togglePiece(chess) {
 				newBoard[i][j] = CHESS_OBSTACLE
 			}
 		}
@@ -97,15 +89,15 @@ func GetShape(board [][]TypeChess, pos Point, dirVec Point, chess TypeChess) (sh
 	// 将chess之外的棋子转换为OBSTACLE
 	board = transBoardWithObstacle(board, chess)
 	// 取出指定方向上的字符串，前后各延伸4个位置
-	line := []string{4: strconv.Itoa(int(chess)), 8: ""}
+	line := []string{4: chess2str(board[pos.x][pos.y], chess), 8: ""}
 	for i := 1; i < 5; i++ {
 		x, y := pos.x+i*dirVec.x, pos.y+i*dirVec.y
 		if isPosValid(board, x, y) {
-			line[4+i] = strconv.Itoa(int(board[x][y]))
+			line[4+i] = chess2str(board[x][y], chess)
 		}
 		x, y = pos.x-i*dirVec.x, pos.y-i*dirVec.y
 		if isPosValid(board, x, y) {
-			line[4-i] = strconv.Itoa(int(board[x][y]))
+			line[4-i] = chess2str(board[x][y], chess)
 		}
 	}
 	// 目标字符串
@@ -174,11 +166,11 @@ func GetShapeFast(board [][]TypeChess, x, y, offsetX, offsetY int, role TypeChes
 		if (rightEmpty >= 1 || rOneEmptySelfCount > rNoEmptySelfCount) && (leftEmpty >= 1 || lOneEmptySelfCount > lNoEmptySelfCount) {
 			return ShapeEnum.Four, selfCount
 		} else if !(rightEmpty == 0 && leftEmpty == 0) {
-			return ShapeEnum.BlockFour, selfCount
+			return ShapeEnum.RushFour, selfCount
 		}
 	}
 	if OneEmptySelfCount == 4 {
-		return ShapeEnum.BlockFour, selfCount
+		return ShapeEnum.RushFour, selfCount
 	}
 	if noEmptySelfCount == 3 {
 		if (rightEmpty >= 2 && leftEmpty >= 1) || (rightEmpty >= 1 && leftEmpty >= 2) {
@@ -208,7 +200,7 @@ func IsFive(shape TypeShapeField) bool {
 
 // IsFour function
 func IsFour(shape TypeShapeField) bool {
-	return shape.Code == ShapeEnum.Four.Code || shape.Code == ShapeEnum.BlockFour.Code
+	return shape.Code == ShapeEnum.Four.Code || shape.Code == ShapeEnum.RushFour.Code
 }
 
 // GetAllShapesOfPoint function

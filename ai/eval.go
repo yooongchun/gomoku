@@ -1,7 +1,6 @@
 package ai
 
 import (
-	"fmt"
 	"time"
 )
 
@@ -219,7 +218,7 @@ func (e *Evaluate) getPoints(role TypeChess, depth int, vct, vcf bool) map[int]m
 								if shape.Code == ShapeEnum.Three.Code && len(GetAllShapesOfPoint(e.shapeCache, i, j, r)) == 1 {
 									continue
 								}
-								if shape.Code == ShapeEnum.BlockFour.Code && len(GetAllShapesOfPoint(e.shapeCache, i, j, r)) == 1 {
+								if shape.Code == ShapeEnum.RushFour.Code && len(GetAllShapesOfPoint(e.shapeCache, i, j, r)) == 1 {
 									continue
 								}
 							}
@@ -231,10 +230,10 @@ func (e *Evaluate) getPoints(role TypeChess, depth int, vct, vcf bool) map[int]m
 								continue
 							}
 							if depth > 1 {
-								if shape.Code == ShapeEnum.BlockFour.Code && len(GetAllShapesOfPoint(e.shapeCache, i, j, CHESS_EMPTY)) == 1 {
+								if shape.Code == ShapeEnum.RushFour.Code && len(GetAllShapesOfPoint(e.shapeCache, i, j, CHESS_EMPTY)) == 1 {
 									continue
 								}
-								if shape.Code == ShapeEnum.BlockFour.Code && !HasInLine(point, lastPoints, e.size) {
+								if shape.Code == ShapeEnum.RushFour.Code && !HasInLine(point, lastPoints, e.size) {
 									continue
 								}
 							}
@@ -251,7 +250,7 @@ func (e *Evaluate) getPoints(role TypeChess, depth int, vct, vcf bool) map[int]m
 					points[shape.Code][point] = true
 					if shape.Code == ShapeEnum.Four.Code {
 						fourCount++
-					} else if shape.Code == ShapeEnum.BlockFour.Code {
+					} else if shape.Code == ShapeEnum.RushFour.Code {
 						blockFourCount++
 					} else if shape.Code == ShapeEnum.Three.Code {
 						threeCount++
@@ -296,7 +295,7 @@ func (e *Evaluate) updatePoint(x, y int) {
 					if e.board[nx][ny] == CHESS_OBSTACLE {             // 到达边界停止
 						reachEdge = true
 						break
-					} else if e.board[nx][ny] == toggleChess(chess) { // 达到对方棋子，则转换角色
+					} else if e.board[nx][ny] == togglePiece(chess) { // 达到对方棋子，则转换角色
 						continue
 					} else if e.board[nx][ny] == CHESS_EMPTY {
 						//[sign * ox, sign * oy]
@@ -346,7 +345,7 @@ func (e *Evaluate) updateSinglePoint(x, y int, chess TypeChess, direction ...Typ
 		shape := shapeCache[dir][x][y]
 		score += shape.Score
 		switch shape.Code {
-		case ShapeEnum.BlockFour.Code:
+		case ShapeEnum.RushFour.Code:
 			blockFourCount++
 		case ShapeEnum.Three.Code:
 			threeCount++
@@ -354,18 +353,16 @@ func (e *Evaluate) updateSinglePoint(x, y int, chess TypeChess, direction ...Typ
 			twoCount++
 		}
 	}
-
 	for _, dir := range directions {
 		vec := DirectionVec[dir]
 		shape := GetShape(e.board, Point{x + 1, y + 1}, vec, chess)
-		fmt.Printf("direction=%v, shape=%v", dir, shape)
 		if shape.Code == ShapeEnum.None.Code {
 			continue
 		}
 		// Cache only single shapes, complex shapes like double Three are not cached
 		shapeCache[dir][x][y] = shape
 		switch shape.Code {
-		case ShapeEnum.BlockFour.Code:
+		case ShapeEnum.RushFour.Code:
 			blockFourCount++
 		case ShapeEnum.Three.Code:
 			threeCount++
@@ -429,7 +426,7 @@ func (e *Evaluate) getMoves(role TypeChess, depth int, onlyThree bool, onlyFour 
 	if !ok {
 		fours = make(map[int]bool)
 	}
-	blockFours, ok := points[ShapeEnum.BlockFour.Code]
+	blockFours, ok := points[ShapeEnum.RushFour.Code]
 	if !ok {
 		blockFours = make(map[int]bool)
 	}

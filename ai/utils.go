@@ -1,7 +1,7 @@
 package ai
 
 import (
-	"fmt"
+	"strconv"
 	"strings"
 )
 
@@ -15,12 +15,12 @@ func getBoardString(board [][]TypeChess, lastOp *Point, extraPoints []Point) str
 	prefix := "  "
 	result.WriteString(prefix + " ")
 	for i := 0; i < size; i++ {
-		result.WriteString(fmt.Sprintf("%X", i) + prefix)
+		result.WriteString(strings.ToUpper(strconv.FormatInt(int64(i), 32)) + prefix)
 	}
 	result.WriteString("\n")
 
 	for i := 0; i < size; i++ {
-		result.WriteString(fmt.Sprintf("%X", i) + prefix)
+		result.WriteString(strings.ToUpper(strconv.FormatInt(int64(i), 32)) + prefix)
 		for j := 0; j < size; j++ {
 			position := Coordinate2Position(i, j, size)
 			if ok, exist := extraPositions[position]; ok && exist {
@@ -34,6 +34,8 @@ func getBoardString(board [][]TypeChess, lastOp *Point, extraPoints []Point) str
 				op = "O"
 			case CHESS_WHITE:
 				op = "X"
+			case CHESS_OBSTACLE:
+				op = "#"
 			default:
 				op = "-"
 			}
@@ -57,6 +59,18 @@ func getBoardString(board [][]TypeChess, lastOp *Point, extraPoints []Point) str
 func togglePiece(chess TypeChess) TypeChess {
 	if chess == CHESS_BLACK {
 		return CHESS_WHITE
+	} else if chess == CHESS_WHITE {
+		return CHESS_BLACK
 	}
-	return CHESS_BLACK
+	return chess
+}
+
+// chess2str 将棋子转换为字符串 跟const中定义的数字有关，不可随意修改
+func chess2str(chess, target TypeChess) string {
+	if chess == CHESS_EMPTY {
+		return "0"
+	} else if chess == target {
+		return "1"
+	}
+	return "2"
 }

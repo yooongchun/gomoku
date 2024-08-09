@@ -1,17 +1,17 @@
 package ai
 
 var ShapeEnum = &TypeShapeAll{
-	Five:        TypeShapeField{5, SCORE_FIVE, []string{IIIII}},
-	Four:        TypeShapeField{4, SCORE_FOUR, []string{OIIIIO}},
+	Five:        TypeShapeField{5, SCORE_FIVE, []string{XXXXX}},
+	Four:        TypeShapeField{4, SCORE_FOUR, []string{OXXXXO}},
+	RushFour:    TypeShapeField{40, SCORE_BLOCK_FOUR, []string{XXOXX, XXXOX, ZXXXXO}},
+	Three:       TypeShapeField{3, SCORE_THREE, []string{OXXXOO, OXXOXO}},
+	BlockThree:  TypeShapeField{30, SCORE_BLOCK_THREE, []string{OXOXX, XOOXX, OXXOX, XOXOX, XXXOO, ZOXXXO, ZXOXXO, ZXXOXO, ZXXXOO}},
+	Two:         TypeShapeField{2, SCORE_TWO, []string{OOXXOO, OXXOOO, OXOXOO, OXOOXO}},
+	BlockTwo:    TypeShapeField{20, SCORE_BLOCK_TWO, []string{XXOOO, XOOXO, OXOXO, XOOOX, XOXOO, OXXOO, ZOOXXO, ZOXOXO, ZOXXOO, ZXOOXO, ZXOXOO, ZXXOOO}},
 	DoubleFour:  TypeShapeField{44, SCORE_FOUR_FOUR, nil},
 	FourThree:   TypeShapeField{43, SCORE_FOUR_THREE, nil},
 	DoubleThree: TypeShapeField{33, SCORE_THREE_THREE, nil},
-	BlockFour:   TypeShapeField{40, SCORE_BLOCK_FOUR, []string{IIOII, IIIOI, ZIIIIO, ZIIIOI, ZIIOII, ZIOIII}},
-	Three:       TypeShapeField{3, SCORE_THREE, []string{OIIIOO, OIIOIO}},
-	BlockThree:  TypeShapeField{30, SCORE_BLOCK_THREE, []string{ZIIIOO, ZIIOIO, ZIOIIO}},
 	DoubleTwo:   TypeShapeField{22, SCORE_TWO_TWO, nil},
-	Two:         TypeShapeField{2, SCORE_TWO, []string{OOIIOO, OIIOOO, OOOIIO, OIOIOO, OOIOIO}},
-	BlockTwo:    TypeShapeField{20, SCORE_BLOCK_TWO, []string{OOIIIZ, OIOIIZ, OIIOIZ}},
 	None:        TypeShapeField{0, SCORE_NONE, nil},
 }
 
