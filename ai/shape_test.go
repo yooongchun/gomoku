@@ -60,5 +60,5 @@ func TestGetShape(t *testing.T) {
 		t.Errorf("Expected %s, got %v", ZXXXOO, shape.Name)
 	}
 
-	fmt.Println(getBoardString(board, nil, nil))
+	fmt.Println(getBoardString(board, nil))
 }

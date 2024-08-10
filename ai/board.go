@@ -2,8 +2,13 @@ package ai
 
 import (
 	"fmt"
+	"github.com/duke-git/lancet/v2/fileutil"
+	"github.com/duke-git/lancet/v2/stream"
 	"github.com/hashicorp/golang-lru/v2"
 	"github.com/sirupsen/logrus"
+	"os"
+	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -19,7 +24,7 @@ type Board struct {
 	evaluateCache      *lru.Cache[uint64, TypeEvaluateCache]
 	valuableMovesCache *lru.Cache[uint64, TypeValuableMoveCache]
 	evaluateTime       time.Duration
-	evaluator          *Evaluate
+	evaluate           *Evaluate
 }
 
 func NewBoard(size int, firstRole TypeRole) *Board {
@@ -45,9 +50,39 @@ func NewBoard(size int, firstRole TypeRole) *Board {
 		evaluateCache:      evaCache,
 		valuableMovesCache: valCache,
 		evaluateTime:       time.Duration(0),
-		evaluator:          NewEvaluate(size),
+		evaluate:           NewEvaluate(size),
 	}
 }
+func Load(fileName string) *Board {
+	// 按行读取内容
+	textLines, err := fileutil.ReadFileByLine(fileName)
+	if err != nil {
+		_ = fmt.Errorf("error reading file:%v", err)
+		return nil
+	}
+	// 过滤掉#开头的注释行
+	textLines = stream.FromSlice(textLines).Filter(func(s string) bool { return !strings.HasPrefix(s, "#") }).ToSlice()
+	// 加载meta信息
+	var size, firstRole int
+	_, err = fmt.Sscanf(textLines[0], "%d,%d", &size, &firstRole)
+	if err != nil {
+		fmt.Println("Error reading file:", err)
+		return nil
+	}
+	board := NewBoard(size, TypeRole(firstRole))
+	for i := 1; i < len(textLines); i++ {
+		// 按行读取历史数据
+		var x, y, chess int
+		_, err = fmt.Sscanf(textLines[i], "%d,%d,%d", &x, &y, &chess)
+		if err != nil {
+			fmt.Printf("Error reading line %d: %s,%v\n", i, textLines[i], err)
+		} else {
+			board.Move(Point{x, y})
+		}
+	}
+	return board
+}
+
 func (b *Board) toChess(role TypeRole) TypeChess {
 	if role == b.firstRole {
 		return CHESS_BLACK
@@ -163,7 +198,7 @@ func (b *Board) Move(point Point) {
 	b.board[point.x][point.y] = b.current
 	b.history = append(b.history, TypeHistory{point, b.current})
 	b.zobrist.TogglePiece(point.x, point.y, b.current)
-	//b.evaluator.Move(point, b.current)
+	b.evaluate.Move(point, b.current)
 	b.togglePiece()
 }
 func (b *Board) Undo() {
@@ -176,22 +211,22 @@ func (b *Board) Undo() {
 	b.history = b.history[:len(b.history)-1]
 	b.board[point.x][point.y] = CHESS_EMPTY // Remove the piece from the board
 	b.zobrist.TogglePiece(point.x, point.y, lastMove.chess)
-	b.evaluator.Undo(point)
+	b.evaluate.Undo(point)
 	b.togglePiece()
 }
 
-func (b *Board) GetValuableMoves(role TypeChess, depth int, onlyThree, onlyFour bool) []Point {
+func (b *Board) GetValuableMoves(chess TypeChess, depth int, onlyThree, onlyFour bool) []Point {
 	hash := b.zobrist.GetHash()
 
 	moveCache, ok := b.valuableMovesCache.Get(hash)
 	if ok {
 		prevMoveCache := moveCache
-		if prevMoveCache.role == role && prevMoveCache.depth == depth && prevMoveCache.onlyThree == onlyThree && prevMoveCache.onlyFour == onlyFour {
+		if prevMoveCache.chess == chess && prevMoveCache.depth == depth && prevMoveCache.onlyThree == onlyThree && prevMoveCache.onlyFour == onlyFour {
 			return prevMoveCache.moves
 		}
 	}
 
-	moves := b.evaluator.getValuableMoves(role, depth, onlyThree, onlyFour)
+	moves := b.evaluate.getMoves(chess, depth, onlyThree, onlyFour)
 
 	// Handle a special case, if the center point has not been played, then add the center point by default
 	if !onlyThree && !onlyFour {
@@ -202,7 +237,7 @@ func (b *Board) GetValuableMoves(role TypeChess, depth int, onlyThree, onlyFour 
 	}
 
 	b.valuableMovesCache.Add(hash, TypeValuableMoveCache{
-		role:      role,
+		chess:     chess,
 		moves:     moves,
 		depth:     depth,
 		onlyThree: onlyThree,
@@ -212,8 +247,57 @@ func (b *Board) GetValuableMoves(role TypeChess, depth int, onlyThree, onlyFour 
 	return moves
 }
 
-func (b *Board) Display(extraPoints []Point) {
-	fmt.Println(getBoardString(b.board, nil, extraPoints))
+func (b *Board) Display(extraPoints ...Point) {
+	var lastOp *Point
+	if len(b.history) > 0 {
+		lastOp = &b.history[len(b.history)-1].point
+	}
+	// 显示棋盘
+	fmt.Print(getBoardString(b.board, lastOp, extraPoints...))
+	// 显示当前各方的得分
+	bs, ws := b.evaluate.getScore()
+	fmt.Printf("Score:\t[BLACK] : [WHITE] = %d : %d\n", bs, ws)
+}
+
+func (b *Board) Save(name ...string) {
+	historyDir := "../history"
+	fileName := fmt.Sprintf("%s/play-%d.txt", historyDir, time.Now().Unix())
+	if len(name) > 0 {
+		fileName = fmt.Sprintf("%s/%s", historyDir, name[0])
+	}
+	// Get the directory from the file path
+	dir := filepath.Dir(fileName)
+
+	// Check if the directory exists
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		// Create the directory if it does not exist
+		err := os.MkdirAll(dir, os.ModePerm)
+		if err != nil {
+			fmt.Println("Error creating directory:", err)
+			return
+		}
+	}
+
+	// Create the file
+	file, err := os.Create(fileName)
+	if err != nil {
+		fmt.Println("Error creating file:", err)
+		return
+	}
+	defer func(file *os.File) {
+		err := file.Close()
+		if err != nil {
+
+		}
+	}(file)
+
+	// 第一行保存meta信息，包括size,firstRole
+	_, _ = file.WriteString(fmt.Sprintf("#meta info:size,firstRole\n%d,%d\n#history info:x,y,chess\n", b.size, b.firstRole))
+	// Write the board state to the file
+	for _, op := range b.history {
+		_, _ = file.WriteString(fmt.Sprintf("%d,%d,%d\n", op.point.x, op.point.y, op.chess))
+	}
+	fmt.Printf("Game save to %s\n", fileName)
 }
 
 func (b *Board) Evaluate(chess TypeChess) int {
@@ -226,19 +310,19 @@ func (b *Board) Evaluate(chess TypeChess) int {
 			return prevCache.score
 		}
 	}
-
-	winner := b.GetWinner()
-	score := 0
-	if winner != CHESS_EMPTY {
-		score = SCORE_FIVE * int(winner) * int(chess)
-	} else {
-		score = b.evaluator.Evaluate(chess)
-	}
-
+	score := b.evaluate.Evaluate(chess)
 	b.evaluateCache.Add(hash, TypeEvaluateCache{
 		chess: chess,
 		score: score,
 	})
 
 	return score
+}
+
+func (b *Board) reverse() *Board {
+	newBoard := NewBoard(b.size, b.secondRole())
+	for _, op := range b.history {
+		newBoard.Move(op.point)
+	}
+	return newBoard
 }

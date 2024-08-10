@@ -1,10 +1,14 @@
 package ai
 
 import (
+	"bufio"
 	"fmt"
 	"github.com/sirupsen/logrus"
 	"math/rand"
-	"time"
+	"os"
+	"regexp"
+	"strconv"
+	"strings"
 )
 
 type Play struct {
@@ -26,7 +30,7 @@ func (p *Play) Play() {
 		for i := 0; i < p.cnt; i++ {
 			fmt.Printf("\033[%dA\r\033[K", 1)
 		}
-		p.board.Display(nil)
+		p.board.Display()
 		p.cnt = p.board.size + 2
 		winner := p.board.GetWinner()
 		if winner != NOBODY {
@@ -37,10 +41,12 @@ func (p *Play) Play() {
 				winnerName = "AI"
 			}
 			logrus.Infoln("Game Over, Winner is ", winnerName)
+			p.board.Save()
 			break
 		}
 		if p.board.IsGameOver() {
 			logrus.Infoln("Game Over, No Winner")
+			p.board.Save()
 			break
 		}
 		if p.board.WhoseTurn() == ROLE_HUMAN {
@@ -56,26 +62,44 @@ func (p *Play) Play() {
 
 func (p *Play) getUserInput() Point {
 	var x, y int
+	re, err := regexp.Compile(`^\s*(\d+)\s*,\s*(\d+)\s*$`)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Print("Input your movement x,y: ")
+	p.cnt += 1
 	for {
-		fmt.Print("Input your movement x, y: ")
-		p.cnt += 1
-		_, err := fmt.Scanf("%d,%d", &x, &y)
-		if err != nil {
-			logrus.Errorln("Invalid input", err)
-			p.cnt += 1
-			continue
+		input := bufio.NewScanner(os.Stdin)
+		for input.Scan() {
+			text := input.Text()
+			if text == "exit" {
+				// 退出游戏
+				fmt.Println("Game Over, Goodbye!!")
+				os.Exit(0)
+			} else if strings.HasPrefix(text, "save") {
+				// 保存游戏
+				p.board.Save()
+				os.Exit(0)
+			} else if !re.MatchString(text) {
+				// 输入不合法
+				fmt.Printf("\033[%dA\r\033[K", 1)
+				fmt.Print("Invalid input, please input again: ")
+			} else {
+				// 判断输入的坐标是否合法
+				parts := strings.Split(text, ",")
+				x, _ = strconv.Atoi(strings.TrimSpace(parts[0]))
+				y, _ = strconv.Atoi(strings.TrimSpace(parts[1]))
+				if isPosValid(p.board.board, x, y) && p.board.board[x][y] == CHESS_EMPTY {
+					return Point{x, y}
+				}
+				fmt.Printf("\033[%dA\r\033[K", 1)
+				fmt.Print("The position has been occupied or not valid, please input again: ")
+			}
 		}
-		if x < 0 || x >= p.board.size || y < 0 || y >= p.board.size {
-			logrus.Errorln("Invalid input, out of range")
-			p.cnt += 1
-			continue
-		}
-		return Point{x, y}
 	}
 }
 
 func (p *Play) getAiMove() Point {
-	time.Sleep(2 * time.Second)
 	for {
 		x := rand.Intn(p.board.size)
 		y := rand.Intn(p.board.size)

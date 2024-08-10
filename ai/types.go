@@ -22,7 +22,7 @@ type TypeEvaluateCache struct {
 }
 
 type TypeValuableMoveCache struct {
-	role      TypeChess
+	chess     TypeChess
 	moves     []Point
 	depth     int
 	onlyThree bool

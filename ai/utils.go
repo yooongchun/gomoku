@@ -1,11 +1,12 @@
 package ai
 
 import (
+	"runtime"
 	"strconv"
 	"strings"
 )
 
-func getBoardString(board [][]TypeChess, lastOp *Point, extraPoints []Point) string {
+func getBoardString(board [][]TypeChess, lastOp *Point, extraPoints ...Point) string {
 	size := len(board)
 	extraPositions := make(map[int]bool, len(extraPoints))
 	for _, point := range extraPoints {
@@ -31,9 +32,9 @@ func getBoardString(board [][]TypeChess, lastOp *Point, extraPoints []Point) str
 			op := ""
 			switch board[i][j] {
 			case CHESS_BLACK:
-				op = "O"
-			case CHESS_WHITE:
 				op = "X"
+			case CHESS_WHITE:
+				op = "O"
 			case CHESS_OBSTACLE:
 				op = "#"
 			default:
@@ -73,4 +74,23 @@ func chess2str(chess, target TypeChess) string {
 		return "1"
 	}
 	return "2"
+}
+
+func ifPresent[T any](condition bool, trueValue, falseValue T) T {
+	if condition {
+		return trueValue
+	}
+	return falseValue
+}
+
+func ifPresentOrNil[T any](condition bool, trueValue T) *T {
+	if condition {
+		return &trueValue
+	}
+	return nil
+}
+
+func getFuncName() string {
+	pc, _, _, _ := runtime.Caller(1)
+	return runtime.FuncForPC(pc).Name()
 }

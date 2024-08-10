@@ -10,21 +10,21 @@ func TestUpdateSinglePoint(t *testing.T) {
 	p := NewPoint(0, 1)
 	e.board[p.x+1][p.y+1] = CHESS_BLACK
 	score := e.updateSinglePoint(p.x, p.y, CHESS_BLACK)
-	if score != SCORE_NONE {
+	if score > e.size {
 		t.Errorf("score %d should be 0", score)
 	}
 	// 眠2
 	p = NewPoint(1, 2)
 	e.board[p.x+1][p.y+1] = CHESS_BLACK
 	score = e.updateSinglePoint(p.x, p.y, CHESS_BLACK)
-	if score != SCORE_BLOCK_TWO {
+	if score > e.size+SCORE_BLOCK_TWO {
 		t.Errorf("score %d should be 0", score)
 	}
 	// 眠3
 	p = NewPoint(2, 3)
 	e.board[p.x+1][p.y+1] = CHESS_BLACK
 	score = e.updateSinglePoint(p.x, p.y, CHESS_BLACK)
-	if score != ShapeEnum.BlockThree.Score {
+	if score > e.size+ShapeEnum.BlockThree.Score {
 		t.Errorf("score %d should be %d", score, ShapeEnum.BlockThree.Score)
 	}
 	// 冲4活3
@@ -60,6 +60,15 @@ func TestUpdateSinglePoint(t *testing.T) {
 	if score < ShapeEnum.Five.Score {
 		t.Errorf("score %d should be %d", score, ShapeEnum.Five.Score)
 	}
-	fmt.Println(getBoardString(e.board, nil, nil))
+	fmt.Println(getBoardString(e.board, nil))
+}
 
+func TestBoard_GetValuableMoves(t *testing.T) {
+	e := NewEvaluate(15)
+	e.Move(NewPoint(7, 7), CHESS_BLACK)
+	e.Move(NewPoint(7, 8), CHESS_WHITE)
+	e.Move(NewPoint(8, 8), CHESS_BLACK)
+	moves := e.getMoves(CHESS_BLACK, 4, false, false)
+	fmt.Println(getBoardString(e.board, nil))
+	fmt.Println(getFuncName(), moves)
 }

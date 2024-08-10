@@ -193,13 +193,13 @@ func GetShapeFast(board [][]TypeChess, x, y, offsetX, offsetY int, role TypeChes
 	return shape, selfCount
 }
 
-// IsFive function
-func IsFive(shape TypeShapeField) bool {
+// isFive function
+func isFive(shape TypeShapeField) bool {
 	return shape.Code == ShapeEnum.Five.Code
 }
 
-// IsFour function
-func IsFour(shape TypeShapeField) bool {
+// isFour function
+func isFour(shape TypeShapeField) bool {
 	return shape.Code == ShapeEnum.Four.Code || shape.Code == ShapeEnum.RushFour.Code
 }
 
